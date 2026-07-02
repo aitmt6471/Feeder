@@ -199,11 +199,21 @@ async function onScan(){
   const pn=String(r.item);
   const row=rowOf(pn);
   if(!row){ toast(`리스트에 없는 품번 ${pn}`); beepErr(); inp.focus(); return; }
-  const need=Number(row.total_qty)||0;
   const q=Number(r.qty)||0;
-  if(pendQty(pn)+q>need){
-    const ok=await askConfirm('⚠️ 필요수량 초과',
-      `품번 ${pn}\n필요수량 ${fmtQty(need)} 을(를) 초과합니다.\n현재 ${fmtQty(pendQty(pn))} + ${fmtQty(q)} = ${fmtQty(pendQty(pn)+q)}\n\n그래도 이 박스를 담을까요?`);
+  // ── 선입선출(FIFO) LOT 안내: 더 빠른 LOT이 남아있으면 경고 ──
+  const el=String(r.earliest_lot||''), sl=String(r.lot||'');
+  if(el && sl && el<sl){
+    const ok=await askConfirm('⚠️ 더 빠른 LOT 있음',
+      `품번 ${pn}\n스캔한 LOT ${sl}\n더 빠른 LOT ${el} 이(가) 자재창고에 남아있습니다.\n\n선입선출(먼저 들어온 LOT 먼저)을 권장합니다.\n그래도 이 박스를 담을까요?`);
+    if(!ok){ inp.focus(); return; }
+  }
+  // ── 필요박스 초과 안내 (필요수량이 아니라 박스 수 기준) ──
+  const need=Number(row.total_qty)||0;
+  const box=Number((_locMap[pn]||{}).box)||0;
+  const needBoxes=box?Math.ceil(need/box):0;
+  if(needBoxes && pendBoxes(pn)+1>needBoxes){
+    const ok=await askConfirm('⚠️ 필요박스 초과',
+      `품번 ${pn}\n필요박스 ${needBoxes}박스를 초과합니다.\n현재 ${pendBoxes(pn)+1}/${needBoxes}박스\n\n그래도 이 박스를 담을까요?`);
     if(!ok){ inp.focus(); return; }
   }
   const k=pkey(pn);
@@ -233,7 +243,7 @@ async function saveMoves(){
   }
   if(short.length){
     const ok=await askConfirm('⚠️ 필요박스 미달',
-      `해당 품번의 자재의 필요박스 수량만큼 채워지지 않았습니다.\n\n${short.join('\n')}\n\n덜 찍혔거나 스캔이 안 읽혔을 수 있어요.\n그래도 이동을 진행할까요?`);
+      `필요박스 수량보다 적게 스캔되었습니다.\n\n${short.join('\n')}\n\n덜 찍혔거나 스캔이 안 읽혔을 수 있어요.\n그래도 이동을 진행할까요?`);
     if(!ok) return;
   }
   const inWh=(_rows[0]&&_rows[0].in_wh)||''; // 생산창고(목적지)
