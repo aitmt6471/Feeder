@@ -326,7 +326,7 @@ async function loadLines(){
     const lines=await MES_REQ.oplines();
     const names=Array.isArray(lines)?lines.map(x=>x&&x.line).filter(Boolean):[];
     if(!names.length) throw new Error('empty');
-    sel.innerHTML=names.map(n=>`<option value="${esc1(n)}">${n}</option>`).join('');
+    sel.innerHTML=names.map((n,i)=>`<option value="${esc1(n)}">${pad(i+1)}. ${n}</option>`).join('');
     if(names.includes('VC')) sel.value='VC';   // 시범 기본 라인 유지
   }catch(e){
     sel.innerHTML='<option value="VC">VC</option><option value="RC">RC</option>';
