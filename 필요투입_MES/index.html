@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MES 필요투입품목 — 자재팀</title>
+<meta name="theme-color" content="#1e3264">
+<style>
+  *{box-sizing:border-box;font-family:'Malgun Gothic','맑은 고딕',-apple-system,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{margin:0;background:#eef2f7;color:#0f172a;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+  #hdr{flex-shrink:0;z-index:10;background:linear-gradient(180deg,#274680,#1e3264);color:#fff;padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 10px rgba(15,23,42,.28)}
+  .hrow{display:flex;align-items:center;gap:8px}
+  .hrow-title{justify-content:space-between}
+  #hdr h1{font-size:17px;margin:0;font-weight:800;letter-spacing:.3px;white-space:nowrap}
+  .pill{background:rgba(255,255,255,.18);padding:5px 12px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
+  .hctl{font-size:15px;padding:7px 8px;border-radius:8px;border:1px solid #c9d4e8;background:#fff;color:#0f172a;min-height:40px}
+  .h-icon{min-height:40px;min-width:42px;padding:0 10px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-size:18px;font-weight:800;cursor:pointer}
+  .h-auto{display:flex;align-items:center;gap:4px;font-size:12px;color:#dbe4f6;white-space:nowrap}
+  #content{flex:1;overflow:auto;padding:0 0 72px}
+  .empty{padding:50px 20px;text-align:center;color:#94a3b8;font-size:19px}
+  #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:11px 20px;border-radius:10px;font-size:16px;opacity:0;transition:opacity .25s;z-index:50;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.32)}
+  #toast.show{opacity:.96}
+  .sticktop{position:sticky;top:0;z-index:8;background:#eef2f7;box-shadow:0 3px 6px rgba(15,23,42,.08);padding:6px 8px;display:flex;flex-direction:column;gap:6px}
+  .ptbl2{width:100%;border-collapse:separate;border-spacing:0;background:#fff;font-size:16px}
+  .ptbl2 th,.ptbl2 td{border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;padding:9px 8px;text-align:center;vertical-align:top}
+  .ptbl2 thead th{background:#1e3264;color:#fff;font-size:15px;position:sticky;top:0}
+  .ptbl2 .pcol2{text-align:left}
+  .pno2{font-family:ui-monospace,monospace;font-weight:800;color:#1e3264;font-size:18px}
+  .pnm{font-size:12px;color:#64748b;white-space:normal;max-width:200px;line-height:1.25;margin-top:1px}
+  .qty{font-size:21px;font-weight:800}
+  .loc-tag{display:inline-block;font-size:12px;color:#b45309;font-weight:800;margin-top:2px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:1px 7px}
+  .box-tag{display:inline-block;font-size:12px;color:#1d4ed8;font-weight:800;margin-top:2px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:1px 7px}
+  /* 타임슬롯 탭 */
+  .slottabs{display:flex;gap:6px}
+  .stab{flex:1;min-height:40px;border:none;border-radius:9px;background:#dbe4f6;color:#1e3264;font-size:17px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+  .stab.on{background:#1e3264;color:#fff}
+  .stab.off{background:#eef2f7;color:#cbd5e1}
+  .stab .sbadge{font-size:11px;background:rgba(30,50,100,.18);border-radius:999px;padding:0 6px;min-width:18px}
+  .stab.on .sbadge{background:rgba(255,255,255,.25)}
+  .stab{flex-wrap:wrap;gap:0 5px}
+  .stab .stime{flex-basis:100%;text-align:center;font-size:10px;font-weight:700;opacity:.72;line-height:1;margin-top:-1px}
+  .stab.off .stime{opacity:.5}
+  .slotinfo{font-size:13px;color:#b45309;font-weight:700;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:5px 10px}
+  /* 확인 모달 */
+  #cfmModal,#setModal{display:none;position:fixed;inset:0;z-index:150;background:rgba(15,23,42,.62);align-items:center;justify-content:center;padding:18px}
+  #cfmModal.open,#setModal.open{display:flex}
+  .cfm-box{background:#fff;border-radius:16px;width:100%;max-width:360px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.45)}
+  .cfm-hd{background:#dc2626;color:#fff;font-weight:800;font-size:18px;padding:14px 18px}
+  .cfm-bd{padding:18px;font-size:16px;color:#0f172a;line-height:1.55;white-space:pre-line}
+  .cfm-ft{display:flex;gap:10px;padding:0 16px 16px}
+  .cfm-ft button{flex:1;min-height:52px;border:none;border-radius:11px;font-size:17px;font-weight:800;cursor:pointer}
+  .cfm-cancel{background:#f1f5f9;color:#64748b}
+  .cfm-ok{background:#dc2626;color:#fff}
+</style>
+</head>
+<body>
+  <div id="hdr">
+    <div class="hrow hrow-title">
+      <h1>🏭 MES 필요투입품목</h1>
+      <span style="display:flex;align-items:center;gap:8px"><span id="mes-who"></span><span class="pill" id="sum">-</span></span>
+    </div>
+    <div class="hrow">
+      <select id="f-line" class="hctl" style="flex:1" onchange="reload()">
+        <option value="">라인 불러오는 중…</option>
+      </select>
+      <input type="date" id="f-date" class="hctl" style="flex:1" onchange="reload()">
+      <button class="h-icon" onclick="reload()" title="새로고침">↻</button>
+      <button class="h-icon" id="btn-settings" onclick="openSettings()" title="설정" style="background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.5)">⚙</button>
+      <label class="h-auto"><input type="checkbox" id="f-auto" checked>자동</label>
+    </div>
+  </div>
+  <div id="content"><div class="empty">불러오는 중...</div></div>
+  <div id="toast"></div>
+
+  <div id="cfmModal" onclick="if(event.target===this)_cfmClose(false)">
+    <div class="cfm-box">
+      <div class="cfm-hd" id="cfm-title">⚠️ 확인</div>
+      <div class="cfm-bd" id="cfm-msg"></div>
+      <div class="cfm-ft">
+        <button class="cfm-cancel" onclick="_cfmClose(false)">취소</button>
+        <button class="cfm-ok" onclick="_cfmClose(true)">그래도 진행</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="setModal" onclick="if(event.target===this)closeSettings()">
+    <div class="cfm-box">
+      <div class="cfm-hd" style="background:#1e3264">⚙ 설정</div>
+      <div class="cfm-bd">
+        <div style="font-weight:800;margin-bottom:6px">🔔 푸시 알림</div>
+        <div style="font-size:14px;color:#475569;line-height:1.5">새 필요투입품목(부족분)이 생기면 이 기기로 알림을 보냅니다.</div>
+        <div id="set-pushstate" style="margin:12px 0;font-size:14px;font-weight:700"></div>
+        <button id="set-pushbtn" onclick="enablePush()" style="width:100%;min-height:50px;border:none;border-radius:11px;font-size:16px;font-weight:800;cursor:pointer;background:#16a34a;color:#fff">🔔 알림 켜기</button>
+        <button onclick="testPush()" style="width:100%;min-height:44px;margin-top:8px;border:1px solid #c9d4e8;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;background:#fff;color:#1e3264">테스트 알림 보내기</button>
+      </div>
+      <div class="cfm-ft">
+        <button class="cfm-cancel" style="flex:1" onclick="closeSettings()">닫기</button>
+      </div>
+    </div>
+  </div>
+
+<script src="../js/api.js"></script>
+<script src="../js/mes-auth.js"></script>
+<script>
+'use strict';
+
+// ── 필요투입 리스트 전용 클라이언트 (AIT_API와 별개, 새 분리 워크플로우 직접 호출) ──
+const MES_REQ = {
+  N8N: 'https://aitechn8n.ngrok.app/webhook',
+  async list(line, date){
+    const qs = new URLSearchParams({line, date}).toString();
+    const r = await fetch(`${this.N8N}/ait/mes/required-input?${qs}`, {cache:'no-store'});
+    if(!r.ok) throw new Error('required-input '+r.status);
+    const t = await r.text();
+    return t ? JSON.parse(t) : [];
+  },
+  async oplines(){
+    const r = await fetch(`${this.N8N}/ait/mes/oplines`, {cache:'no-store'});
+    if(!r.ok) throw new Error('oplines '+r.status);
+    const t = await r.text();
+    return t ? JSON.parse(t) : [];
+  }
+};
+
+let _timer=null, _busy=false, _rows=[], _locMap={}, _scanPending={}, _slot='A';
+const SLOT_TIME={A:'9~11시',B:'11~1시',C:'2~4시',D:'4~6시'};
+function fmtQty(n){ n=Math.round(Number(n)*1000)/1000; return n.toLocaleString('en-US',{maximumFractionDigits:3}); }
+function esc1(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function ymd(){ const v=document.getElementById('f-date').value; return v?v.replace(/-/g,''):''; }
+function beepErr(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)(); const o=a.createOscillator(); o.frequency.value=220; o.connect(a.destination); o.start(); setTimeout(()=>{o.stop();a.close();},180);}catch(_){ } }
+function locTag(pn){ const o=_locMap[pn]; return (o&&o.loc)?`<div class="loc-tag">📍 ${o.loc}</div>`:''; }
+function boxTag(pn,qty){ const o=_locMap[pn]; if(!o||!o.box) return ''; const n=Math.ceil((Number(qty)||0)/o.box); return `<div class="box-tag">📦 ${n}박스</div>`; }
+
+// ── 스타일 확인 모달 (Promise<boolean>) ──
+let _cfmResolve=null;
+function askConfirm(title,msg){
+  return new Promise(res=>{ _cfmResolve=res;
+    document.getElementById('cfm-title').textContent=title;
+    document.getElementById('cfm-msg').textContent=msg;
+    document.getElementById('cfmModal').classList.add('open'); });
+}
+function _cfmClose(v){ document.getElementById('cfmModal').classList.remove('open'); const r=_cfmResolve; _cfmResolve=null; if(r) r(v); }
+
+// 저장대기는 타임슬롯별로 관리 (같은 부품이 C·D 타임에 동시에 있을 수 있어 키에 slot 포함)
+function pkey(pn,slot){ return (slot||_slot)+'|'+pn; }
+function cancelPending(pn){ const k=pkey(pn); if(!_scanPending[k]) return; delete _scanPending[k]; toast(`${pn} 저장대기 취소`); render(); focusScan(); }
+function pendQty(pn){ return (_scanPending[pkey(pn)]||[]).reduce((a,b)=>a+b.qty,0); }
+function pendBoxes(pn){ return (_scanPending[pkey(pn)]||[]).length; }
+function pendTotals(){ let boxes=0,pns=0; for(const k in _scanPending){ const n=_scanPending[k].length; if(n){ boxes+=n; pns++; } } return {boxes,pns}; }
+function rowOf(pn){ return _rows.find(x=>String(x.sub_part_no)===String(pn)&&(x.slot||'A')===_slot); }
+function focusScan(){ const si=document.getElementById('scan'); if(si) si.focus({preventScroll:true}); }
+// 현재 _rows에 존재하는 타임슬롯 메타 (A,B,C,D 순, 자재투입번호·부품수)
+function slotsMeta(){
+  const m={};
+  for(const r of _rows){ const s=r.slot||'A'; if(!m[s]) m[s]={slot:s,no:r.slot_no||'',n:r.slot_n||1,count:0}; if(r.sub_part_no&&!r.is_empty) m[s].count++; }
+  return ['A','B','C','D'].filter(s=>m[s]).map(s=>m[s]);
+}
+function setSlot(s){ _slot=s; render(); focusScan(); }
+
+// ── 스캔: 박스라벨 → 자재창고(00025) 조회 → 리스트 품번 매칭 → 누적 ──
+async function onScan(){
+  const inp=document.getElementById('scan'); if(!inp) return;
+  const label=inp.value.trim(); inp.value='';
+  if(!label){ inp.focus(); return; }
+  for(const k in _scanPending){ if(_scanPending[k].some(b=>b.label===label)){ toast('이미 스캔된 라벨입니다'); beepErr(); inp.focus(); return; } }
+  let r; try{ r=await AIT_API.labelInfo(label,'00025'); }catch(e){ toast('조회 오류: '+(e.message||e)); inp.focus(); return; }
+  if(!r||!r.ok){ toast('자재창고에 없는 라벨입니다'); beepErr(); inp.focus(); return; }
+  const pn=String(r.item);
+  const row=rowOf(pn);
+  if(!row){ toast(`리스트에 없는 품번 ${pn}`); beepErr(); inp.focus(); return; }
+  const need=Number(row.total_qty)||0;
+  const q=Number(r.qty)||0;
+  if(pendQty(pn)+q>need){
+    const ok=await askConfirm('⚠️ 필요수량 초과',
+      `품번 ${pn}\n필요수량 ${fmtQty(need)} 을(를) 초과합니다.\n현재 ${fmtQty(pendQty(pn))} + ${fmtQty(q)} = ${fmtQty(pendQty(pn)+q)}\n\n그래도 이 박스를 담을까요?`);
+    if(!ok){ inp.focus(); return; }
+  }
+  const k=pkey(pn);
+  (_scanPending[k]=_scanPending[k]||[]).push({sysitem:r.sysitem,label:r.label,lot:r.lot,qty:q});
+  toast(`${_slot}타임 ${pn} +1박스 (${fmtQty(q)})`);
+  render(); focusScan();
+}
+
+async function saveMoves(){
+  if(_busy) return;
+  const t=pendTotals(); if(!t.boxes){ toast('스캔된 박스가 없습니다'); return; }
+  // ── 현재 타임 필요박스 미달 검사 (휴먼에러 인지용, 강제 차단 아님) ──
+  const short=[];
+  for(const p of _rows){
+    if((p.slot||'A')!==_slot || !p.sub_part_no || p.is_empty) continue;
+    const pn=p.sub_part_no, pb=pendBoxes(pn);
+    if(!pb) continue;                                   // 안 담은 품번은 검사 제외
+    const box=Number((_locMap[pn]||{}).box)||0;
+    if(!box) continue;                                  // 박스당수량 정보 없으면 제외
+    const needBoxes=Math.ceil((Number(p.total_qty)||0)/box);
+    if(pb<needBoxes) short.push(`· ${pn} : ${pb}/${needBoxes}박스`);
+  }
+  if(short.length){
+    const ok=await askConfirm('⚠️ 필요박스 미달',
+      `해당 품번의 자재의 필요박스 수량만큼 채워지지 않았습니다.\n\n${short.join('\n')}\n\n덜 찍혔거나 스캔이 안 읽혔을 수 있어요.\n그래도 이동을 진행할까요?`);
+    if(!ok) return;
+  }
+  const inWh=(_rows[0]&&_rows[0].in_wh)||''; // 생산창고(목적지)
+  if(!inWh){ toast('생산창고를 찾을 수 없습니다'); return; }
+  const boxes=[]; for(const k in _scanPending) for(const b of _scanPending[k]) boxes.push(b);
+  _busy=true; toast(`이동 처리 중... (${t.boxes}박스)`);
+  try{
+    const res=await AIT_API.stockMove({out_wh:'00025',in_wh:inWh,emp:MES_AUTH.emp,boxes});
+    if(res&&res.ok){
+      toast('이동 완료 ('+res.no_stwm+')');
+      _scanPending={}; await reload();   // 라이브 재계산 → 충족된 품목 자동 제거
+    } else { toast('이동 실패: '+((res&&res.error)||'오류')); beepErr(); }
+  }catch(e){ toast('이동 오류: '+(e.message||e)); beepErr(); }
+  finally{ _busy=false; }
+}
+
+async function reload(){
+  const line=document.getElementById('f-line').value;
+  const date=ymd();
+  const wrap=document.getElementById('content');
+  if(!date){ wrap.innerHTML='<div class="empty">날짜를 선택하세요</div>'; return; }
+  try{
+    const res=await MES_REQ.list(line,date);
+    _rows=Array.isArray(res)?res:[];
+    const present=slotsMeta().map(x=>x.slot);     // 현재 _slot에 품목 없으면 품목 있는 첫 타임으로
+    if(!present.includes(_slot)) _slot=present[0]||'A';
+    render();
+    const parts=[...new Set(_rows.map(r=>r.sub_part_no).filter(Boolean))];
+    if(parts.length){
+      AIT_API.getPartLocations(parts)
+        .then(m=>{ _locMap=(m&&typeof m==='object'&&!Array.isArray(m))?m:{}; render(); })
+        .catch(()=>{});
+    }
+  }catch(e){ wrap.innerHTML=`<div class="empty" style="color:#ef4444">오류: ${e.message}</div>`; }
+}
+
+function render(){
+  const wrap=document.getElementById('content');
+  const meta=slotsMeta();
+  const pt=pendTotals();
+  // ── 타임 탭 (자재투입번호가 1개뿐이면 탭 숨김) ──
+  const tabs = meta.length>1 ? `<div class="slottabs">`+['A','B','C','D'].map(s=>{
+      const x=meta.find(y=>y.slot===s);
+      const tm=SLOT_TIME[s]||'';
+      if(!x) return `<button class="stab off" disabled>${s}<span class="stime">${tm}</span></button>`;
+      return `<button class="stab${s===_slot?' on':''}" onclick="setSlot('${s}')">${s}<span class="sbadge">${x.count}</span><span class="stime">${tm}</span></button>`;
+    }).join('')+`</div>` : '';
+  const am=meta.find(x=>x.slot===_slot);
+  const slotInfo = (meta.length>1 && am) ? `<div class="slotinfo">🕐 ${_slot}타임 · 자재투입 ${am.no}${am.n>1?` 외 ${am.n-1}건`:''}</div>` : '';
+  const rows=[..._rows].filter(p=>(p.slot||'A')===_slot && p.sub_part_no && !p.is_empty)
+    .sort((a,b)=>String(a.sub_part_no).localeCompare(String(b.sub_part_no),undefined,{numeric:true}));
+  document.getElementById('sum').textContent=_rows.length?`${meta.length>1?_slot+'타임 ':''}부품 ${rows.length}종`:'부품 0종';
+  const toolbar=`<div class="sticktop">${tabs}${slotInfo}
+    <input id="scan" placeholder="📷 박스라벨 스캔 (PDA)" autocomplete="off" inputmode="none" virtualkeyboardpolicy="manual"
+      style="width:100%;font-size:15px;padding:9px 12px;border:2px solid #1e3264;border-radius:10px;min-height:42px;font-family:ui-monospace,monospace"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();onScan()}">
+    <button onclick="saveMoves()" ${pt.boxes?'':'disabled'} style="width:100%;min-height:42px;border-radius:9px;font-size:15px;font-weight:800;cursor:pointer;border:none;color:#fff;background:${pt.boxes?'#1e3264':'#cbd5e1'}">📦 이동 저장${pt.boxes?` (${pt.boxes}박스·${pt.pns}품목)`:''}</button>
+  </div>`;
+  if(!_rows.length){ wrap.innerHTML=toolbar+'<div class="empty">부족한 투입품목이 없습니다 ✅</div>'; focusScan(); return; }
+  if(!rows.length){ wrap.innerHTML=toolbar+'<div class="empty">이 타임은 부족 품목이 없습니다 ✅</div>'; focusScan(); return; }
+  let body=`<table class="ptbl2"><thead><tr><th style="text-align:left">부품</th><th style="min-width:80px">필요수량</th><th style="min-width:70px">채움</th></tr></thead><tbody>`;
+  rows.forEach(p=>{
+    const pn=p.sub_part_no, need=Number(p.total_qty)||0;
+    const box=Number((_locMap[pn]||{}).box)||0;
+    const needBoxes=box?Math.ceil(need/box):null;
+    const pq=pendQty(pn), pb=pendBoxes(pn);
+    const xBtn=`<button onclick="cancelPending('${esc1(pn)}')" title="저장대기 취소" style="margin-top:3px;border:none;background:#fee2e2;color:#b91c1c;border-radius:6px;width:24px;height:20px;font-size:12px;cursor:pointer">✕</button>`;
+    let fill, bg='#fff';
+    if(pb && pq>=need){ fill=`<div style="font-size:14px;font-weight:800;color:#1d4ed8">🔵 채움 ✓</div><div style="font-size:10px;color:#1d4ed8">${pb}박스·저장대기</div>${xBtn}`; bg='#eff6ff'; }
+    else if(pb){ fill=`<div style="font-size:14px;font-weight:800;color:#1d4ed8">🔵 ${pb}/${needBoxes??'?'}박스</div><div style="font-size:10px;color:#64748b">${fmtQty(pq)}/${fmtQty(need)}</div>${xBtn}`; bg='#eff6ff'; }
+    else { fill=`<div style="font-size:14px;font-weight:700;color:#94a3b8">☐ ${needBoxes?('0/'+needBoxes+'박스'):'-'}</div>`; }
+    body+=`<tr>
+      <td class="pcol2"><span class="pno2">${pn}</span><div class="pnm">${p.part_name||''}</div>${locTag(pn)}</td>
+      <td style="background:${bg}"><div class="qty" style="color:#15803d">${fmtQty(need)}</div>${boxTag(pn,need)}</td>
+      <td>${fill}</td>
+    </tr>`;
+  });
+  body+='</tbody></table>';
+  wrap.innerHTML=toolbar+body;
+  focusScan();
+}
+
+function tick(){ if(Object.keys(_scanPending).length) return; if(document.getElementById('f-auto').checked && !_busy) reload(); }
+
+// ── 라인 목록 동적 로드 (MMIT_OPLINE 전체) ──
+async function loadLines(){
+  const sel=document.getElementById('f-line');
+  try{
+    const lines=await MES_REQ.oplines();
+    const names=Array.isArray(lines)?lines.map(x=>x&&x.line).filter(Boolean):[];
+    if(!names.length) throw new Error('empty');
+    sel.innerHTML=names.map(n=>`<option value="${esc1(n)}">${n}</option>`).join('');
+    if(names.includes('VC')) sel.value='VC';   // 시범 기본 라인 유지
+  }catch(e){
+    sel.innerHTML='<option value="VC">VC</option><option value="RC">RC</option>';
+    toast('라인 목록 로드 실패 — 기본 라인 사용');
+  }
+}
+
+// ── 웹푸시(필요투입 전용, 출고요청과 분리된 구독/발송) ──
+const VAPID_PUBLIC='BLimlNDe_M60ZFhJ-rUIp3ohwrJEmCNk7EVv8vyehWXkapqOMI6bnvKo2MXgrqnzt1otM41XumWWZFthT8JUNbE';
+let _swReg=null;
+function _b64ToU8(s){ const pad='='.repeat((4-s.length%4)%4); const b=(s+pad).replace(/-/g,'+').replace(/_/g,'/'); const raw=atob(b); return Uint8Array.from([...raw].map(c=>c.charCodeAt(0))); }
+function openSettings(){ document.getElementById('setModal').classList.add('open'); _refreshPushState(); }
+function closeSettings(){ document.getElementById('setModal').classList.remove('open'); }
+function _setPushUI(on){
+  const st=document.getElementById('set-pushstate'), b=document.getElementById('set-pushbtn');
+  if(on){ if(st){st.textContent='✅ 이 기기는 알림이 켜져 있습니다';st.style.color='#15803d';} if(b){b.textContent='🔔 알림 켜짐 (다시 등록)';b.style.background='#22c55e';} }
+  else { if(st){st.textContent='⛔ 알림이 꺼져 있습니다';st.style.color='#b91c1c';} if(b){b.textContent='🔔 알림 켜기';b.style.background='#16a34a';} }
+}
+async function _refreshPushState(){
+  try{
+    if(!('serviceWorker' in navigator)||!('Notification' in window)||Notification.permission!=='granted'){ _setPushUI(false); return; }
+    const reg=_swReg||await navigator.serviceWorker.ready; const sub=await reg.pushManager.getSubscription();
+    _setPushUI(!!sub);
+  }catch(_){ _setPushUI(false); }
+}
+async function enablePush(){
+  try{
+    const ua=navigator.userAgent||'';
+    const isIOS=/iPad|iPhone|iPod/.test(ua);
+    const iOSChrome=isIOS && /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+    const standalone=(window.navigator.standalone===true)||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
+    if(!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)){
+      if(iOSChrome){ alert('아이폰은 크롬에서 알림이 지원되지 않아요.\n\n① 이 주소를 "Safari"로 다시 열기\n② Safari 하단 공유(□↑) → "홈 화면에 추가"\n③ 홈 화면 아이콘으로 열어 "🔔 알림 켜기"\n\n(iOS는 Safari로 설치한 앱에서만 알림 가능, iOS 16.4+)'); }
+      else if(isIOS && !standalone){ alert('아이폰은 Safari 탭에서는 알림을 켤 수 없어요.\n\n① Safari 하단 공유(□↑) → "홈 화면에 추가"\n② 홈 화면 아이콘으로 다시 열기\n③ 그 화면에서 "🔔 알림 켜기"\n\n(iOS 16.4 이상 필요)'); }
+      else { alert('이 기기/브라우저는 푸시를 지원하지 않습니다.'); }
+      return;
+    }
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){ alert('알림 권한이 허용되지 않았습니다.'); return; }
+    const reg=_swReg||await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){ sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:_b64ToU8(VAPID_PUBLIC)}); }
+    const j=sub.toJSON();
+    const r=await fetch(`${MES_REQ.N8N}/ait/mes/push-subscribe`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:j.endpoint,keys:j.keys,ua:navigator.userAgent})});
+    if(!r.ok) throw new Error('subscribe '+r.status);
+    _setPushUI(true); toast('알림이 켜졌습니다');
+  }catch(e){ alert('알림 설정 실패: '+(e&&e.message||e)); }
+}
+async function testPush(){
+  try{ const r=await fetch(`${MES_REQ.N8N}/ait/mes/push-test`,{method:'POST'}); toast(r.ok?'테스트 발송됨 (잠시 후 알림)':'발송 실패'); }
+  catch(e){ toast('발송 오류: '+(e.message||e)); }
+}
+
+(function init(){
+  const d=new Date();
+  document.getElementById('f-date').value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw-req.js').then(reg=>{_swReg=reg;}).catch(()=>{}); }
+  MES_AUTH.ready(async ()=>{
+    const w=document.getElementById('mes-who'); if(w) w.innerHTML=MES_AUTH.chipHtml();
+    await loadLines();
+    reload();
+    _timer=setInterval(tick, 30000);
+  });
+})();
+</script>
+</body>
+</html>
