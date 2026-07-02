@@ -20,7 +20,10 @@
   .hrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .hrow-title{justify-content:space-between;flex-wrap:nowrap}
   #hdr h1{font-size:clamp(15px,4.4vw,17px);margin:0;font-weight:800;letter-spacing:.3px;white-space:nowrap;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
-  #f-line,#f-date{flex:1 1 120px;min-width:110px}
+  #f-line{flex:1 1 120px;min-width:110px}
+  .datewrap{position:relative;flex:0 0 auto;display:flex}
+  .datewrap #f-date{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0}
+  #f-date-btn{padding:7px 10px;text-align:center;font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
   .pill{background:rgba(255,255,255,.18);padding:5px 12px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
   .hctl{font-size:15px;padding:7px 8px;border-radius:8px;border:1px solid #c9d4e8;background:#fff;color:#0f172a;min-height:40px}
   .h-icon{min-height:40px;min-width:42px;padding:0 10px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-size:18px;font-weight:800;cursor:pointer}
@@ -83,7 +86,10 @@
       <select id="f-line" class="hctl" style="flex:1" onchange="reload()">
         <option value="">라인 불러오는 중…</option>
       </select>
-      <input type="date" id="f-date" class="hctl" style="flex:1" onchange="reload()">
+      <span class="datewrap">
+        <button type="button" id="f-date-btn" class="hctl">--</button>
+        <input type="date" id="f-date" onchange="onDateChange()">
+      </span>
       <button class="h-icon" onclick="reload()" title="새로고침">↻</button>
       <button class="h-icon" id="btn-settings" onclick="openSettings()" title="설정" style="background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.5)">⚙</button>
       <label class="h-auto"><input type="checkbox" id="f-auto" checked>자동</label>
@@ -149,6 +155,9 @@ function esc1(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
 function pad(n){ return String(n).padStart(2,'0'); }
 function ymd(){ const v=document.getElementById('f-date').value; return v?v.replace(/-/g,''):''; }
+function fmtDateDisp(v){ return (v&&v.length>=10)?v.slice(2):'--'; }   // yyyy-mm-dd → yy-mm-dd
+function syncDateBtn(){ const b=document.getElementById('f-date-btn'); if(b) b.textContent=fmtDateDisp(document.getElementById('f-date').value); }
+function onDateChange(){ syncDateBtn(); reload(); }
 function beepErr(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)(); const o=a.createOscillator(); o.frequency.value=220; o.connect(a.destination); o.start(); setTimeout(()=>{o.stop();a.close();},180);}catch(_){ } }
 function locTag(pn){ const o=_locMap[pn]; return (o&&o.loc)?`<div class="loc-tag">📍 ${o.loc}</div>`:''; }
 function boxTag(pn,qty){ const o=_locMap[pn]; if(!o||!o.box) return ''; const n=Math.ceil((Number(qty)||0)/o.box); return `<div class="box-tag">📦 ${n}박스</div>`; }
@@ -373,6 +382,7 @@ async function testPush(){
 (function init(){
   const d=new Date();
   document.getElementById('f-date').value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  syncDateBtn();
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw-req.js').then(reg=>{_swReg=reg;}).catch(()=>{}); }
   MES_AUTH.ready(async ()=>{
     const w=document.getElementById('mes-who'); if(w) w.innerHTML=MES_AUTH.chipHtml();
