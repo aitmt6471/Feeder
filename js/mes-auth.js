@@ -9,7 +9,9 @@
   'use strict';
   const KEY = 'mes_user';
   let user = null;
-  try { user = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (_) {}
+  // 세션 저장만 사용(창/앱 닫으면 로그아웃). 과거 localStorage 저장분은 1회 정리.
+  try { user = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (_) {}
+  try { localStorage.removeItem(KEY); } catch (_) {}
   const readyCbs = []; let fired = false;
   function fireReady() { if (fired) return; fired = true; readyCbs.forEach(cb => { try { cb(user); } catch (_) {} }); }
 
@@ -52,7 +54,7 @@
       const r = await AIT_API.pdaLogin(emp, pwd);
       if (r && r.ok) {
         user = { emp: r.emp, name: r.name || r.emp };
-        localStorage.setItem(KEY, JSON.stringify(user));
+        sessionStorage.setItem(KEY, JSON.stringify(user));
         document.getElementById('mes-pwd').value = '';
         err.textContent = ''; hide(); fireReady();
       } else { err.textContent = '사번 또는 비밀번호가 올바르지 않습니다'; }
@@ -60,7 +62,7 @@
   }
 
   function logout() {
-    user = null; localStorage.removeItem(KEY);
+    user = null; sessionStorage.removeItem(KEY); try { localStorage.removeItem(KEY); } catch (_) {}
     location.reload();
   }
 
