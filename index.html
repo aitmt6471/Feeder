@@ -205,6 +205,11 @@ async function onScan(){
 
 async function saveMoves(){
   if(_busy) return;
+  if(!(window.MES_AUTH && MES_AUTH.emp)){   // 로그인(사번) 없으면 이동 차단 → 재로그인 유도
+    toast('로그인이 필요합니다. 다시 로그인해 주세요.'); beepErr();
+    if(window.MES_AUTH && MES_AUTH.logout) setTimeout(()=>MES_AUTH.logout(),1300);
+    return;
+  }
   const t=pendTotals(); if(!t.boxes){ toast('스캔된 박스가 없습니다'); return; }
   // ── 현재 타임 필요박스 미달 검사 (휴먼에러 인지용, 강제 차단 아님) ──
   const short=[];

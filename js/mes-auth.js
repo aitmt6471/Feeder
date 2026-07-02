@@ -12,6 +12,7 @@
   // 세션 저장만 사용(창/앱 닫으면 로그아웃). 과거 localStorage 저장분은 1회 정리.
   try { user = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (_) {}
   try { localStorage.removeItem(KEY); } catch (_) {}
+  if (!(user && user.emp)) user = null;   // 사번 없는 반쪽 세션은 미로그인으로 처리
   const readyCbs = []; let fired = false;
   function fireReady() { if (fired) return; fired = true; readyCbs.forEach(cb => { try { cb(user); } catch (_) {} }); }
 
