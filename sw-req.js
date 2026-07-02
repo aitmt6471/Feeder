@@ -1,6 +1,35 @@
-// AIT MES 필요투입품목 PWA 서비스워커 (출고요청 sw.js와 분리, 스코프=필요투입_MES/)
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+// AIT MES 필요투입품목 PWA 서비스워커 (홈화면 설치용, 앱셸 캐시 + 푸시)
+const CACHE = 'feeder-v1';
+const SHELL = ['./', 'index.html', 'js/api.js', 'js/mes-auth.js', 'manifest.json',
+  'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'ait-logo.png'];
+
+self.addEventListener('install', (e) => {
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {}));
+});
+self.addEventListener('activate', (e) => {
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
+});
+
+// 앱셸: 동일 출처 GET만 처리(네트워크 우선, 실패 시 캐시). n8n(교차출처) 요청은 건드리지 않음.
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  e.respondWith((async () => {
+    try {
+      const net = await fetch(req);
+      if (net && net.ok) { const c = await caches.open(CACHE); c.put(req, net.clone()); }
+      return net;
+    } catch (_) {
+      const cached = await caches.match(req);
+      return cached || caches.match('index.html');
+    }
+  })());
+});
 
 // 푸시 수신 → 최신 알림 문구 조회 후 '○○ 새 필요투입품목…' 알림
 const REQ_LATEST_URL = 'https://aitechn8n.ngrok.app/webhook/ait/mes/req-push-latest';
