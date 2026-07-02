@@ -243,8 +243,9 @@ async function saveMoves(){
   try{
     const res=await AIT_API.stockMove({out_wh:'00025',in_wh:inWh,emp:MES_AUTH.emp,boxes});
     if(res&&res.ok){
-      toast('이동 완료 ('+res.no_stwm+')');
-      _scanPending={}; await reload();   // 라이브 재계산 → 충족된 품목 자동 제거
+      toast('이동 완료 ('+res.no_stwm+') · 새로고침');
+      _scanPending={};
+      setTimeout(()=>location.reload(), 1000);   // 이동 완료 후 자동 전체 새로고침
     } else { toast('이동 실패: '+((res&&res.error)||'오류')); beepErr(); }
   }catch(e){ toast('이동 오류: '+(e.message||e)); beepErr(); }
   finally{ _busy=false; }
