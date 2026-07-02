@@ -1,0 +1,10 @@
+# 비밀키 — 절대 커밋 금지
+vapid_keys.json
+*.key
+*.pem
+.env
+.env.*
+# 캐시/세션
+__pycache__/
+*.pyc
+.omc/
