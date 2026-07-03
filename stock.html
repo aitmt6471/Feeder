@@ -90,7 +90,7 @@ const MES_REQ={
   }
 };
 
-let _rows=[], _locMap={}, _busy=false;
+let _rows=[], _locMap={}, _busy=false, _qval='', _clearTimer=null, _searched=false;
 // 품목유형(CD_ITEMTYPE) → 완제품(제품001/반제품003) / 부품(그 외) 배지
 function typeBadge(t){ const fin=(t==='001'||t==='003'); return `<span class="tbadge ${fin?'fin':'part'}">${fin?'완제품':'부품'}</span>`; }
 function fmtQty(n){ n=Math.round(Number(n)*1000)/1000; return n.toLocaleString('en-US',{maximumFractionDigits:3}); }
@@ -103,21 +103,33 @@ function boxTag(pn,qty){ const o=_locMap[pn]; if(!o||!o.box) return ''; const n=
 // 박스라벨(일자8+품번5+순번4 = 17자리 숫자) 여부 판정
 function looksLikeLabel(s){ return /^\d{15,}$/.test(s); }
 
+// 스캔 후 값을 5초간 유지(라벨 인식 확인용) → 자동 삭제
+function armClear(){ if(_clearTimer) clearTimeout(_clearTimer); _clearTimer=setTimeout(clearQ,5000); }
+function clearQ(){ _qval=''; _searched=false; if(_clearTimer){clearTimeout(_clearTimer);_clearTimer=null;} const i=document.getElementById('q'); if(i) i.value=''; }
+// 검색창 키 입력: Enter=조회 / 직전 스캔값이 남아있으면 새 입력 시작 시 먼저 비움(이어붙기 방지)
+function onQKey(e){
+  if(e.key==='Enter'){ e.preventDefault(); onEnter(); return; }
+  if(_searched){ clearQ(); }
+}
+
 async function onEnter(){
   const inp=document.getElementById('q'); if(!inp||_busy) return;
   const val=inp.value.trim();
   if(!val){ inp.focus(); return; }
   _busy=true;
+  if(_clearTimer){ clearTimeout(_clearTimer); _clearTimer=null; }
   try{
+    let sv=val;
     if(looksLikeLabel(val)){
       // 라벨 스캔 → 전체 창고 현재고에서 품번 해석(자재창고에 없어도 OK) → 그 품번으로 창고별 재고 조회
-      let r; try{ r=await AIT_API.labelInfo(val, 'ALL'); }catch(e){ toast('라벨 조회 오류: '+(e.message||e)); return; }
-      if(!r||!r.ok){ toast('재고에 없는 라벨입니다'); beepErr(); return; }
-      inp.value=String(r.item);
-      await runSearch(String(r.item));
-    } else {
-      await runSearch(val);
+      let r; try{ r=await AIT_API.labelInfo(val, 'ALL'); }catch(e){ toast('라벨 조회 오류: '+(e.message||e)); clearQ(); return; }
+      if(!r||!r.ok){ toast('재고에 없는 라벨입니다'); beepErr(); clearQ(); return; }
+      sv=String(r.item);
     }
+    _qval=sv;                 // 검색창에 표시(라벨 인식 확인용)
+    await runSearch(sv);
+    _searched=true;
+    armClear();               // 5초 뒤 자동 삭제
   } finally { _busy=false; focusScan(); }
 }
 
@@ -140,8 +152,9 @@ async function runSearch(q){
 function toolbarHtml(){
   return `<div class="sticktop">
     <input id="q" placeholder="🔎 품번·품명 입력 / 📷 라벨 스캔" autocomplete="off"
+      value="${_qval.replace(/"/g,'&quot;')}"
       style="width:100%;font-size:15px;padding:9px 12px;border:2px solid #1e3264;border-radius:10px;min-height:42px;font-family:ui-monospace,monospace"
-      onkeydown="if(event.key==='Enter'){event.preventDefault();onEnter()}">
+      onkeydown="onQKey(event)">
     <div class="hint">창고별 현재고 (재고 있는 창고만 표시)</div>
   </div>`;
 }
