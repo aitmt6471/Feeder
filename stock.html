@@ -41,6 +41,12 @@
   .whtbl td{padding:6px 8px;border-top:1px solid #eef2f7;font-size:15px}
   .whtbl .whn{color:#334155;font-weight:600}
   .whtbl .whq{text-align:right;font-weight:800;color:#0f172a;font-family:ui-monospace,monospace;white-space:nowrap}
+  /* 창고별 LOT 세부 */
+  .whtbl .whrow .whn{font-weight:700}
+  .lotinline{font-size:12px;color:#64748b;font-weight:600;font-family:ui-monospace,monospace}
+  .whtbl .lotrow td{padding:3px 8px;border-top:1px dashed #e5e7eb;font-size:13px;color:#64748b}
+  .whtbl .lotrow .lotn{padding-left:16px;font-family:ui-monospace,monospace}
+  .whtbl .lotrow .lotq{text-align:right;font-family:ui-monospace,monospace;white-space:nowrap;font-weight:700;color:#334155}
   /* 부품/완제품 자동 배지 */
   .phd-l{display:flex;align-items:center;gap:6px;min-width:0}
   .tbadge{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap;flex-shrink:0}
@@ -145,8 +151,12 @@ function render(){
   const groups={};
   for(const r of _rows){
     const pn=r.sub_part_no; if(!pn) continue;
-    const g=(groups[pn]=groups[pn]||{pn, name:r.part_name||'', spec:r.spec||'', type:r.item_type||'', whs:[], total:0});
-    g.whs.push({name:r.wh_name||r.wh_code||'', stock:Number(r.stock)||0});
+    const g=(groups[pn]=groups[pn]||{pn, name:r.part_name||'', spec:r.spec||'', type:r.item_type||'', whMap:{}, whs:[], total:0});
+    const key=r.wh_name||r.wh_code||'';
+    let w=g.whMap[key];
+    if(!w){ w={name:key, total:0, lots:[]}; g.whMap[key]=w; g.whs.push(w); }
+    w.lots.push({lot:r.lot||'', stock:Number(r.stock)||0});
+    w.total+=Number(r.stock)||0;
     g.total+=Number(r.stock)||0;
   }
   const list=Object.values(groups);
@@ -154,7 +164,14 @@ function render(){
   if(!_rows.length){ wrap.innerHTML=toolbarHtml()+'<div class="empty">조회 결과가 없습니다</div>'; focusScan(); return; }
   let body='';
   list.forEach(g=>{
-    const whrows=g.whs.map(w=>`<tr><td class="whn">${w.name}</td><td class="whq">${fmtQty(w.stock)}</td></tr>`).join('');
+    const whrows=g.whs.map(w=>{
+      if(w.lots.length===1){
+        const l=w.lots[0];
+        return `<tr class="whrow"><td class="whn">${w.name} <span class="lotinline">LOT ${l.lot||'-'}</span></td><td class="whq">${fmtQty(w.total)}</td></tr>`;
+      }
+      const lots=w.lots.map(l=>`<tr class="lotrow"><td class="lotn">└ LOT ${l.lot||'-'}</td><td class="lotq">${fmtQty(l.stock)}</td></tr>`).join('');
+      return `<tr class="whrow"><td class="whn">${w.name}</td><td class="whq">${fmtQty(w.total)}</td></tr>${lots}`;
+    }).join('');
     body+=`<div class="pcard">
       <div class="phd"><span class="phd-l">${typeBadge(g.type)}<span class="pno2">${g.pn}</span></span><span class="ptot">Σ ${fmtQty(g.total)}</span></div>
       <div class="pnm">${g.name}${g.spec?(' · '+g.spec):''}</div>

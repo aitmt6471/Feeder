@@ -106,20 +106,20 @@ STOCK_BUILD=(
 "const tp=String(q.type||'').trim();\n"   # 완제품유형=제품(001)+반제품(003), 부품=그 외
 "const typeSql = tp==='fin' ? \"AND i.CD_ITEMTYPE IN ('001','003') \" : (tp==='part' ? \"AND i.CD_ITEMTYPE NOT IN ('001','003') \" : '');\n"
 "const sql=`DECLARE @q NVARCHAR(100)='${term}';`+\n"
-"`SELECT TOP 300 i.CD_ITEM AS sub_part_no,i.NM_ITEM AS part_name,i.TX_SPEC AS spec,i.CD_SYSITEM AS sysitem,i.CD_ITEMTYPE AS item_type,`+\n"
-"`w.CD_WAREHOUSE AS wh_code,w.NM_WAREHOUSE AS wh_name,SUM(s.QT_STOCK) AS stock `+\n"
+"`SELECT TOP 500 i.CD_ITEM AS sub_part_no,i.NM_ITEM AS part_name,i.TX_SPEC AS spec,i.CD_SYSITEM AS sysitem,i.CD_ITEMTYPE AS item_type,`+\n"
+"`w.CD_WAREHOUSE AS wh_code,w.NM_WAREHOUSE AS wh_name,s.NO_LOT AS lot,SUM(s.QT_STOCK) AS stock `+\n"
 "`FROM __DB__.dbo.STIT_STOCK_NOW s `+\n"
 "`JOIN __DB__.dbo.BSIT_ITEM i ON i.CD_SYSITEM=s.CD_SYSITEM `+\n"
 "`JOIN __DB__.dbo.STIT_WAREHOUSE w ON w.CD_CORP=s.CD_CORP AND w.CD_WAREHOUSE=s.CD_WAREHOUSE `+\n"
 "`WHERE s.CD_CORP='01' AND s.QT_STOCK<>0 ${typeSql}AND (i.CD_ITEM LIKE '%'+@q+'%' OR i.NM_ITEM LIKE '%'+@q+'%') `+\n"
-"`GROUP BY i.CD_ITEM,i.NM_ITEM,i.TX_SPEC,i.CD_SYSITEM,i.CD_ITEMTYPE,w.CD_WAREHOUSE,w.NM_WAREHOUSE `+\n"
-"`ORDER BY i.CD_ITEM,w.CD_WAREHOUSE;`;\n"
+"`GROUP BY i.CD_ITEM,i.NM_ITEM,i.TX_SPEC,i.CD_SYSITEM,i.CD_ITEMTYPE,w.CD_WAREHOUSE,w.NM_WAREHOUSE,s.NO_LOT `+\n"
+"`ORDER BY i.CD_ITEM,w.CD_WAREHOUSE,s.NO_LOT;`;\n"
 "return [{json:{sql}}];").replace('__DB__',DB)
 STOCK_FMT=(
 "const rows=$input.all().map(i=>i.json).filter(r=>r&&r.sub_part_no);\n"
 "const out=rows.map(r=>({sub_part_no:String(r.sub_part_no||''),part_name:String(r.part_name||''),"
 "spec:String(r.spec||''),sysitem:String(r.sysitem||''),item_type:String(r.item_type||''),wh_code:String(r.wh_code||''),"
-"wh_name:String(r.wh_name||''),stock:Number(r.stock)||0}));\n"
+"wh_name:String(r.wh_name||''),lot:String(r.lot||''),stock:Number(r.stock)||0}));\n"
 "return [{json:{rows:out}}];")
 
 # ═════════════════════ 웹푸시(필요투입 전용, 출고요청과 분리) ═════════════════════
