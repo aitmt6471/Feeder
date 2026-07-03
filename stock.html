@@ -73,7 +73,6 @@
 <script>
 'use strict';
 
-const SCAN_WH='00025';   // 박스라벨이 존재하는 자재창고(라벨→품번 해석용). 재고표시는 창고별 전체.
 const MES_REQ={
   N8N:'https://aitechn8n.ngrok.app/webhook',
   async stock(q,type){
@@ -112,9 +111,9 @@ async function onEnter(){
   _busy=true;
   try{
     if(looksLikeLabel(val)){
-      // 라벨 스캔 → 자재창고 현재고에서 품번 해석 → 그 품번으로 창고별 재고 조회
-      let r; try{ r=await AIT_API.labelInfo(val, SCAN_WH); }catch(e){ toast('라벨 조회 오류: '+(e.message||e)); return; }
-      if(!r||!r.ok){ toast('자재창고에 없는 라벨입니다'); beepErr(); return; }
+      // 라벨 스캔 → 전체 창고 현재고에서 품번 해석(자재창고에 없어도 OK) → 그 품번으로 창고별 재고 조회
+      let r; try{ r=await AIT_API.labelInfo(val, 'ALL'); }catch(e){ toast('라벨 조회 오류: '+(e.message||e)); return; }
+      if(!r||!r.ok){ toast('재고에 없는 라벨입니다'); beepErr(); return; }
       inp.value=String(r.item);
       await runSearch(String(r.item));
     } else {
