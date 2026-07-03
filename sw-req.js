@@ -1,6 +1,6 @@
 // AIT MES 필요투입품목 PWA 서비스워커 (홈화면 설치용, 앱셸 캐시 + 푸시)
-const CACHE = 'feeder-v2';
-const SHELL = ['./', 'index.html', 'js/api.js', 'js/mes-auth.js', 'manifest.json',
+const CACHE = 'feeder-v3';
+const SHELL = ['./', 'index.html', 'req.html', 'stock.html', 'js/api.js', 'js/mes-auth.js', 'manifest.json',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'ait-logo.png'];
 
 self.addEventListener('install', (e) => {
@@ -50,17 +50,17 @@ self.addEventListener('push', (e) => {
       icon: 'ait-logo.png',
       badge: 'ait-logo.png',
       vibrate: [120, 60, 120],
-      data: { url: 'index.html' }
+      data: { url: 'req.html' }
     });
   })());
 });
 
-// 알림 클릭 → 필요투입 화면 열기/포커스
+// 알림 클릭 → 필요투입품목 화면 열기/포커스
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   e.waitUntil((async () => {
     const all = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const c of all) { if (c.url.includes('필요투입_MES') && 'focus' in c) return c.focus(); }
-    if (clients.openWindow) return clients.openWindow('index.html');
+    for (const c of all) { if (c.url.includes('req.html') && 'focus' in c) return c.focus(); }
+    if (clients.openWindow) return clients.openWindow('req.html');
   })());
 });

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>재고조회 — 현재고현황</title>
+<meta name="theme-color" content="#1e3264">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  *{box-sizing:border-box;font-family:'Malgun Gothic','맑은 고딕',-apple-system,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{margin:0;background:#eef2f7;color:#0f172a;height:100dvh;width:100%;max-width:100vw;display:flex;flex-direction:column;overflow:hidden;overflow-x:hidden}
+  #hdr{flex-shrink:0;z-index:10;background:linear-gradient(180deg,#274680,#1e3264);color:#fff;padding:10px 12px;
+    padding-top:calc(10px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 10px rgba(15,23,42,.28)}
+  .hrow{display:flex;align-items:center;gap:8px}
+  .hrow-title{justify-content:space-between}
+  #hdr h1{font-size:17px;margin:0;font-weight:800;letter-spacing:.3px;white-space:nowrap}
+  .h-back{min-height:40px;min-width:42px;padding:0 10px;border:1px solid rgba(255,255,255,.5);border-radius:8px;
+    background:rgba(255,255,255,.16);color:#fff;font-size:18px;font-weight:800;cursor:pointer}
+  .pill{background:rgba(255,255,255,.18);padding:5px 12px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
+  #content{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px 8px calc(24px + env(safe-area-inset-bottom,0px))}
+  .empty{padding:50px 20px;text-align:center;color:#94a3b8;font-size:19px}
+  #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:11px 20px;
+    border-radius:10px;font-size:16px;opacity:0;transition:opacity .25s;z-index:50;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.32)}
+  #toast.show{opacity:.96}
+  .sticktop{position:sticky;top:-8px;z-index:8;background:#eef2f7;margin:-8px -8px 8px;padding:8px;box-shadow:0 3px 6px rgba(15,23,42,.08);display:flex;flex-direction:column;gap:6px}
+  .hint{font-size:12px;color:#64748b;text-align:center}
+  .pcard{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px;margin-bottom:10px;box-shadow:0 2px 6px rgba(15,23,42,.06)}
+  .phd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .pno2{font-family:ui-monospace,monospace;font-weight:800;color:#1e3264;font-size:19px}
+  .ptot{font-size:15px;font-weight:800;color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:2px 10px;white-space:nowrap}
+  .pnm{font-size:12px;color:#64748b;white-space:normal;line-height:1.3;margin-top:2px}
+  .loc-tag{display:inline-block;font-size:12px;color:#b45309;font-weight:800;margin-top:4px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:1px 7px}
+  .box-tag{display:inline-block;font-size:12px;color:#1d4ed8;font-weight:800;margin-top:4px;margin-left:4px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:1px 7px}
+  .whtbl{width:100%;border-collapse:separate;border-spacing:0;margin-top:8px}
+  .whtbl td{padding:6px 8px;border-top:1px solid #eef2f7;font-size:15px}
+  .whtbl .whn{color:#334155;font-weight:600}
+  .whtbl .whq{text-align:right;font-weight:800;color:#0f172a;font-family:ui-monospace,monospace;white-space:nowrap}
+</style>
+</head>
+<body>
+  <div id="hdr">
+    <div class="hrow hrow-title">
+      <span style="display:flex;align-items:center;gap:8px">
+        <button class="h-back" onclick="location.href='index.html'" title="메뉴">←</button>
+        <h1>📦 재고조회</h1>
+      </span>
+      <span style="display:flex;align-items:center;gap:8px"><span id="mes-who"></span><span class="pill" id="sum">-</span></span>
+    </div>
+  </div>
+  <div id="content"><div class="empty">품번·품명을 입력하거나 박스라벨을 스캔하세요</div></div>
+  <div id="toast"></div>
+
+<script src="js/api.js"></script>
+<script src="js/mes-auth.js"></script>
+<script>
+'use strict';
+
+const SCAN_WH='00025';   // 박스라벨이 존재하는 자재창고(라벨→품번 해석용). 재고표시는 창고별 전체.
+const MES_REQ={
+  N8N:'https://aitechn8n.ngrok.app/webhook',
+  async stock(q){
+    const qs=new URLSearchParams({q}).toString();
+    const r=await fetch(`${this.N8N}/ait/mes/stock-query?${qs}`,{cache:'no-store'});
+    if(!r.ok) throw new Error('stock-query '+r.status);
+    const t=await r.text();
+    return t?JSON.parse(t):[];
+  }
+};
+
+let _rows=[], _locMap={}, _busy=false;
+function fmtQty(n){ n=Math.round(Number(n)*1000)/1000; return n.toLocaleString('en-US',{maximumFractionDigits:3}); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+function beepErr(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)(); const o=a.createOscillator(); o.frequency.value=220; o.connect(a.destination); o.start(); setTimeout(()=>{o.stop();a.close();},180);}catch(_){ } }
+function focusScan(){ const si=document.getElementById('q'); if(si) si.focus({preventScroll:true}); }
+function locTag(pn){ const o=_locMap[pn]; return (o&&o.loc)?`<span class="loc-tag">📍 ${o.loc}</span>`:''; }
+function boxTag(pn,qty){ const o=_locMap[pn]; if(!o||!o.box) return ''; const n=Math.ceil((Number(qty)||0)/o.box); return `<span class="box-tag">📦 ${n}박스</span>`; }
+
+// 박스라벨(일자8+품번5+순번4 = 17자리 숫자) 여부 판정
+function looksLikeLabel(s){ return /^\d{15,}$/.test(s); }
+
+async function onEnter(){
+  const inp=document.getElementById('q'); if(!inp||_busy) return;
+  const val=inp.value.trim();
+  if(!val){ inp.focus(); return; }
+  _busy=true;
+  try{
+    if(looksLikeLabel(val)){
+      // 라벨 스캔 → 자재창고 현재고에서 품번 해석 → 그 품번으로 창고별 재고 조회
+      let r; try{ r=await AIT_API.labelInfo(val, SCAN_WH); }catch(e){ toast('라벨 조회 오류: '+(e.message||e)); return; }
+      if(!r||!r.ok){ toast('자재창고에 없는 라벨입니다'); beepErr(); return; }
+      inp.value=String(r.item);
+      await runSearch(String(r.item));
+    } else {
+      await runSearch(val);
+    }
+  } finally { _busy=false; focusScan(); }
+}
+
+async function runSearch(q){
+  const wrap=document.getElementById('content');
+  wrap.innerHTML='<div class="empty">조회 중...</div>';
+  try{
+    const res=await MES_REQ.stock(q);
+    _rows=Array.isArray(res)?res:[];
+    render();
+    const parts=[...new Set(_rows.map(r=>r.sub_part_no).filter(Boolean))];
+    if(parts.length){
+      AIT_API.getPartLocations(parts)
+        .then(m=>{ _locMap=(m&&typeof m==='object'&&!Array.isArray(m))?m:{}; render(); })
+        .catch(()=>{});
+    }
+  }catch(e){ wrap.innerHTML=`<div class="empty" style="color:#ef4444">오류: ${e.message}</div>`; }
+}
+
+function toolbarHtml(){
+  return `<div class="sticktop">
+    <input id="q" placeholder="🔎 품번·품명 입력 / 📷 라벨 스캔" autocomplete="off"
+      style="width:100%;font-size:15px;padding:9px 12px;border:2px solid #1e3264;border-radius:10px;min-height:42px;font-family:ui-monospace,monospace"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();onEnter()}">
+    <div class="hint">창고별 현재고 (재고 있는 창고만 표시)</div>
+  </div>`;
+}
+
+function render(){
+  const wrap=document.getElementById('content');
+  const groups={};
+  for(const r of _rows){
+    const pn=r.sub_part_no; if(!pn) continue;
+    const g=(groups[pn]=groups[pn]||{pn, name:r.part_name||'', spec:r.spec||'', whs:[], total:0});
+    g.whs.push({name:r.wh_name||r.wh_code||'', stock:Number(r.stock)||0});
+    g.total+=Number(r.stock)||0;
+  }
+  const list=Object.values(groups);
+  document.getElementById('sum').textContent=`${list.length}종`;
+  if(!_rows.length){ wrap.innerHTML=toolbarHtml()+'<div class="empty">조회 결과가 없습니다</div>'; focusScan(); return; }
+  let body='';
+  list.forEach(g=>{
+    const whrows=g.whs.map(w=>`<tr><td class="whn">${w.name}</td><td class="whq">${fmtQty(w.stock)}</td></tr>`).join('');
+    body+=`<div class="pcard">
+      <div class="phd"><span class="pno2">${g.pn}</span><span class="ptot">Σ ${fmtQty(g.total)}</span></div>
+      <div class="pnm">${g.name}${g.spec?(' · '+g.spec):''}</div>
+      <div>${locTag(g.pn)}${boxTag(g.pn,g.total)}</div>
+      <table class="whtbl"><tbody>${whrows}</tbody></table>
+    </div>`;
+  });
+  wrap.innerHTML=toolbarHtml()+body;
+  focusScan();
+}
+
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw-req.js').catch(()=>{}); }
+MES_AUTH.ready(()=>{
+  const w=document.getElementById('mes-who'); if(w) w.innerHTML=MES_AUTH.chipHtml();
+  render();
+});
+</script>
+</body>
+</html>

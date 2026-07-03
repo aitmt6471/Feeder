@@ -95,6 +95,31 @@ OPL_FMT=("const rows=$input.all().map(i=>i.json).filter(r=>r&&r.NM_OPLINE);\n"
          "const out=rows.map(r=>({line:String(r.NM_OPLINE),code:String(r.CD_OPLINE||'')}));\n"
          "return [{json:{lines:out}}];")
 
+# ───────────────────── 재고조회(stock-query) ─────────────────────
+# query: q(품번 CD_ITEM 또는 품명 NM_ITEM 일부). 창고별 현재고(재고<>0)를 STIT_WAREHOUSE 이름과 함께 반환.
+# 소스 = STIT_STOCK_NOW(현재고) × BSIT_ITEM(품명) × STIT_WAREHOUSE(창고명). READ-ONLY.
+STOCK_BUILD=(
+"const q=$json.query||{};\n"
+"const esc=v=>String(v==null?'':v).replace(/'/g,\"''\");\n"
+"const term=esc(String(q.q||q.item||'').trim());\n"
+"if(!term){ return [{json:{sql:\"SELECT TOP 0 '' AS sub_part_no\"}}]; }\n"
+"const sql=`DECLARE @q NVARCHAR(100)='${term}';`+\n"
+"`SELECT TOP 300 i.CD_ITEM AS sub_part_no,i.NM_ITEM AS part_name,i.TX_SPEC AS spec,i.CD_SYSITEM AS sysitem,`+\n"
+"`w.CD_WAREHOUSE AS wh_code,w.NM_WAREHOUSE AS wh_name,SUM(s.QT_STOCK) AS stock `+\n"
+"`FROM __DB__.dbo.STIT_STOCK_NOW s `+\n"
+"`JOIN __DB__.dbo.BSIT_ITEM i ON i.CD_SYSITEM=s.CD_SYSITEM `+\n"
+"`JOIN __DB__.dbo.STIT_WAREHOUSE w ON w.CD_CORP=s.CD_CORP AND w.CD_WAREHOUSE=s.CD_WAREHOUSE `+\n"
+"`WHERE s.CD_CORP='01' AND s.QT_STOCK<>0 AND (i.CD_ITEM LIKE '%'+@q+'%' OR i.NM_ITEM LIKE '%'+@q+'%') `+\n"
+"`GROUP BY i.CD_ITEM,i.NM_ITEM,i.TX_SPEC,i.CD_SYSITEM,w.CD_WAREHOUSE,w.NM_WAREHOUSE `+\n"
+"`ORDER BY i.CD_ITEM,w.CD_WAREHOUSE;`;\n"
+"return [{json:{sql}}];").replace('__DB__',DB)
+STOCK_FMT=(
+"const rows=$input.all().map(i=>i.json).filter(r=>r&&r.sub_part_no);\n"
+"const out=rows.map(r=>({sub_part_no:String(r.sub_part_no||''),part_name:String(r.part_name||''),"
+"spec:String(r.spec||''),sysitem:String(r.sysitem||''),wh_code:String(r.wh_code||''),"
+"wh_name:String(r.wh_name||''),stock:Number(r.stock)||0}));\n"
+"return [{json:{rows:out}}];")
+
 # ═════════════════════ 웹푸시(필요투입 전용, 출고요청과 분리) ═════════════════════
 # 구독저장: push_sub_reqinput / 상태·최신알림: reqinput_kv (둘 다 MySQL 공정문서db)
 # 트리거: 5분 주기 크론이 전 라인 오늘~내일 부족분 계산 → 직전 스냅샷과 비교 → '새로 생긴' 부족품목 있으면 payload-less 푸시
@@ -293,6 +318,19 @@ nodes=[
   'alwaysOutputData':True,'parameters':{'mode':'runOnceForAllItems','jsCode':OPL_FMT}},
  {'id':'opl-rs','name':'OPL_Respond','type':'n8n-nodes-base.respondToWebhook','typeVersion':1.1,'position':[1200,Y+300],
   'parameters':{'respondWith':'json','responseBody':'={{ JSON.stringify($json.lines) }}','options':{}}},
+ # ── 재고조회 라우트 (창고별 현재고) ──
+ {'id':'stk-wh','name':'STK_Webhook','type':'n8n-nodes-base.webhook','typeVersion':2,'position':[0,Y+600],
+  'webhookId':'rqi-stock-query','parameters':{'path':'ait/mes/stock-query','httpMethod':'GET',
+  'responseMode':'responseNode','authentication':'none','options':{}}},
+ {'id':'stk-bs','name':'STK_BuildSQL','type':'n8n-nodes-base.code','typeVersion':2,'position':[300,Y+600],
+  'parameters':{'mode':'runOnceForAllItems','jsCode':STOCK_BUILD}},
+ {'id':'stk-ms','name':'STK_Mssql','type':'n8n-nodes-base.microsoftSql','typeVersion':1,'position':[600,Y+600],
+  'credentials':{'microsoftSql':MSSQL_CRED},'alwaysOutputData':True,
+  'parameters':{'operation':'executeQuery','query':'={{ $json.sql }}','options':{}}},
+ {'id':'stk-fmt','name':'STK_Format','type':'n8n-nodes-base.code','typeVersion':2,'position':[900,Y+600],
+  'alwaysOutputData':True,'parameters':{'mode':'runOnceForAllItems','jsCode':STOCK_FMT}},
+ {'id':'stk-rs','name':'STK_Respond','type':'n8n-nodes-base.respondToWebhook','typeVersion':1.1,'position':[1200,Y+600],
+  'parameters':{'respondWith':'json','responseBody':'={{ JSON.stringify($json.rows) }}','options':{}}},
 ]
 connections={
  'RQI_Webhook':{'main':[[{'node':'RQI_BuildSQL','type':'main','index':0}]]},
@@ -302,6 +340,10 @@ connections={
  'OPL_Webhook':{'main':[[{'node':'OPL_Mssql','type':'main','index':0}]]},
  'OPL_Mssql':{'main':[[{'node':'OPL_Format','type':'main','index':0}]]},
  'OPL_Format':{'main':[[{'node':'OPL_Respond','type':'main','index':0}]]},
+ 'STK_Webhook':{'main':[[{'node':'STK_BuildSQL','type':'main','index':0}]]},
+ 'STK_BuildSQL':{'main':[[{'node':'STK_Mssql','type':'main','index':0}]]},
+ 'STK_Mssql':{'main':[[{'node':'STK_Format','type':'main','index':0}]]},
+ 'STK_Format':{'main':[[{'node':'STK_Respond','type':'main','index':0}]]},
 }
 # ── 웹푸시 노드/연결 병합 ──
 nodes.extend(push_nodes)
