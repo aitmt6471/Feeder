@@ -41,11 +41,11 @@
   .whtbl td{padding:6px 8px;border-top:1px solid #eef2f7;font-size:15px}
   .whtbl .whn{color:#334155;font-weight:600}
   .whtbl .whq{text-align:right;font-weight:800;color:#0f172a;font-family:ui-monospace,monospace;white-space:nowrap}
-  /* 부품/완제품 전환 세그먼트 */
-  .typeseg{display:flex;gap:6px}
-  .typeseg .seg{flex:1;min-height:40px;border:1px solid #c9d4e8;border-radius:9px;background:#fff;color:#64748b;
-    font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
-  .typeseg .seg.on{background:#1e3264;color:#fff;border-color:#1e3264;box-shadow:0 2px 6px rgba(30,50,100,.25)}
+  /* 부품/완제품 자동 배지 */
+  .phd-l{display:flex;align-items:center;gap:6px;min-width:0}
+  .tbadge{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap;flex-shrink:0}
+  .tbadge.fin{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+  .tbadge.part{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1}
   /* 모바일 가로 짤림 방지 */
   #hdr h1{overflow:hidden;text-overflow:ellipsis;min-width:0}
   .hrow-title>span{min-width:0}
@@ -75,8 +75,8 @@
 
 const MES_REQ={
   N8N:'https://aitechn8n.ngrok.app/webhook',
-  async stock(q,type){
-    const qs=new URLSearchParams(type?{q,type}:{q}).toString();
+  async stock(q){
+    const qs=new URLSearchParams({q}).toString();
     const r=await fetch(`${this.N8N}/ait/mes/stock-query?${qs}`,{cache:'no-store'});
     if(!r.ok) throw new Error('stock-query '+r.status);
     const t=await r.text();
@@ -84,25 +84,18 @@ const MES_REQ={
   }
 };
 
-let _rows=[], _locMap={}, _busy=false, _type='part', _lastQ='';   // 'part'=부품 / 'fin'=완제품
+let _rows=[], _locMap={}, _busy=false;
+// 품목유형(CD_ITEMTYPE) → 완제품(제품001/반제품003) / 부품(그 외) 배지
+function typeBadge(t){ const fin=(t==='001'||t==='003'); return `<span class="tbadge ${fin?'fin':'part'}">${fin?'완제품':'부품'}</span>`; }
 function fmtQty(n){ n=Math.round(Number(n)*1000)/1000; return n.toLocaleString('en-US',{maximumFractionDigits:3}); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
 function beepErr(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)(); const o=a.createOscillator(); o.frequency.value=220; o.connect(a.destination); o.start(); setTimeout(()=>{o.stop();a.close();},180);}catch(_){ } }
 function focusScan(){ const si=document.getElementById('q'); if(si) si.focus({preventScroll:true}); }
 function locTag(pn){ const o=_locMap[pn]; return (o&&o.loc)?`<span class="loc-tag">📍 ${o.loc}</span>`:''; }
-function boxTag(pn,qty){ const o=_locMap[pn]; if(!o||!o.box) return ''; const n=Math.ceil((Number(qty)||0)/o.box); return `<span class="box-tag">📦 ${n}박스 (${fmtQty(o.box)}/박스)</span>`; }
+function boxTag(pn,qty){ const o=_locMap[pn]; if(!o||!o.box) return ''; const n=Math.ceil((Number(qty)||0)/o.box); return `<span class="box-tag">📦 현:${n}BOX (적재수 ${fmtQty(o.box)}/BOX)</span>`; }
 
 // 박스라벨(일자8+품번5+순번4 = 17자리 숫자) 여부 판정
 function looksLikeLabel(s){ return /^\d{15,}$/.test(s); }
-
-// 부품/완제품 전환 → 현재 검색어 그대로 재조회
-function setType(t){
-  if(_type===t) return;
-  _type=t;
-  const seg=document.getElementById('typeseg');
-  if(seg) seg.querySelectorAll('.seg').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
-  if(_lastQ) runSearch(_lastQ); else { const i=document.getElementById('q'); if(i) i.focus(); }
-}
 
 async function onEnter(){
   const inp=document.getElementById('q'); if(!inp||_busy) return;
@@ -125,9 +118,8 @@ async function onEnter(){
 async function runSearch(q){
   const wrap=document.getElementById('content');
   wrap.innerHTML='<div class="empty">조회 중...</div>';
-  _lastQ=q;
   try{
-    const res=await MES_REQ.stock(q,_type);
+    const res=await MES_REQ.stock(q);
     _rows=Array.isArray(res)?res:[];
     render();
     const parts=[...new Set(_rows.map(r=>r.sub_part_no).filter(Boolean))];
@@ -140,12 +132,7 @@ async function runSearch(q){
 }
 
 function toolbarHtml(){
-  const on=t=>_type===t?' on':'';
   return `<div class="sticktop">
-    <div id="typeseg" class="typeseg">
-      <button type="button" class="seg${on('part')}" data-t="part" onclick="setType('part')">🔩 부품</button>
-      <button type="button" class="seg${on('fin')}" data-t="fin" onclick="setType('fin')">📦 완제품</button>
-    </div>
     <input id="q" placeholder="🔎 품번·품명 입력 / 📷 라벨 스캔" autocomplete="off"
       style="width:100%;font-size:15px;padding:9px 12px;border:2px solid #1e3264;border-radius:10px;min-height:42px;font-family:ui-monospace,monospace"
       onkeydown="if(event.key==='Enter'){event.preventDefault();onEnter()}">
@@ -158,7 +145,7 @@ function render(){
   const groups={};
   for(const r of _rows){
     const pn=r.sub_part_no; if(!pn) continue;
-    const g=(groups[pn]=groups[pn]||{pn, name:r.part_name||'', spec:r.spec||'', whs:[], total:0});
+    const g=(groups[pn]=groups[pn]||{pn, name:r.part_name||'', spec:r.spec||'', type:r.item_type||'', whs:[], total:0});
     g.whs.push({name:r.wh_name||r.wh_code||'', stock:Number(r.stock)||0});
     g.total+=Number(r.stock)||0;
   }
@@ -169,7 +156,7 @@ function render(){
   list.forEach(g=>{
     const whrows=g.whs.map(w=>`<tr><td class="whn">${w.name}</td><td class="whq">${fmtQty(w.stock)}</td></tr>`).join('');
     body+=`<div class="pcard">
-      <div class="phd"><span class="pno2">${g.pn}</span><span class="ptot">Σ ${fmtQty(g.total)}</span></div>
+      <div class="phd"><span class="phd-l">${typeBadge(g.type)}<span class="pno2">${g.pn}</span></span><span class="ptot">Σ ${fmtQty(g.total)}</span></div>
       <div class="pnm">${g.name}${g.spec?(' · '+g.spec):''}</div>
       <div>${locTag(g.pn)}${boxTag(g.pn,g.total)}</div>
       <table class="whtbl"><tbody>${whrows}</tbody></table>
