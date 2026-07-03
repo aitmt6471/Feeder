@@ -79,11 +79,11 @@
 <body>
   <div id="hdr">
     <div class="hrow hrow-title">
-      <span style="display:flex;align-items:center;gap:8px;min-width:0">
+      <span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
         <button class="h-icon" onclick="location.href='index.html'" title="메뉴" style="background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.5);flex:0 0 auto">←</button>
         <h1>🏭 MES 필요투입품목</h1>
       </span>
-      <span style="display:flex;align-items:center;gap:8px"><span id="mes-who"></span><span class="pill" id="sum">-</span></span>
+      <span style="display:flex;align-items:center;gap:8px;flex:0 0 auto"><span id="mes-who"></span></span>
     </div>
     <div class="hrow">
       <select id="f-line" class="hctl" style="flex:1" onchange="reload()">
@@ -299,7 +299,6 @@ function render(){
   const slotInfo = (meta.length>1 && am) ? `<div class="slotinfo">🕐 ${_slot}타임 · 자재투입 ${am.no}${am.n>1?` 외 ${am.n-1}건`:''}</div>` : '';
   const rows=[..._rows].filter(p=>(p.slot||'A')===_slot && p.sub_part_no && !p.is_empty)
     .sort((a,b)=>String(a.sub_part_no).localeCompare(String(b.sub_part_no),undefined,{numeric:true}));
-  document.getElementById('sum').textContent=_rows.length?`${meta.length>1?_slot+'타임 ':''}부품 ${rows.length}종`:'부품 0종';
   const toolbar=`<div class="sticktop">${tabs}${slotInfo}
     <input id="scan" placeholder="📷 박스라벨 스캔 (PDA)" autocomplete="off" inputmode="none" virtualkeyboardpolicy="manual"
       style="width:100%;font-size:15px;padding:9px 12px;border:2px solid #1e3264;border-radius:10px;min-height:42px;font-family:ui-monospace,monospace"
