@@ -1,5 +1,5 @@
 // AIT MES 필요투입품목 PWA 서비스워커 (홈화면 설치용, 앱셸 캐시 + 푸시)
-const CACHE = 'feeder-v9';
+const CACHE = 'feeder-v10';
 const SHELL = ['./', 'index.html', 'req.html', 'stock.html', 'js/api.js', 'js/mes-auth.js', 'manifest.json',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'ait-logo.png'];
 
@@ -15,13 +15,14 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
-// 앱셸: 동일 출처 GET만 처리(네트워크 우선, 실패 시 캐시). n8n(교차출처) 요청은 건드리지 않음.
+// 앱셸: 동일 출처 GET만 처리. 네트워크 우선 + HTTP 캐시 무시(no-store)로 항상 서버 최신본 수신.
+// (GitHub Pages의 max-age=600 때문에 옛 파일이 최대 10분 붙잡히던 문제 방지) 실패 시 캐시 폴백.
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   e.respondWith((async () => {
     try {
-      const net = await fetch(req);
+      const net = await fetch(req, { cache: 'no-store' });
       if (net && net.ok) { const c = await caches.open(CACHE); c.put(req, net.clone()); }
       return net;
     } catch (_) {
