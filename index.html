@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>SEI 자재 시스템 — 메뉴</title>
+<title>AIT 자재시스템 — 메뉴</title>
 <meta name="theme-color" content="#1e3264">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -16,11 +16,14 @@
   *{box-sizing:border-box;font-family:'Malgun Gothic','맑은 고딕',-apple-system,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
   html,body{height:100%}
   body{margin:0;background:#eef2f7;color:#0f172a;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
-  #hdr{flex-shrink:0;background:linear-gradient(180deg,#274680,#1e3264);color:#fff;padding:12px 14px;
+  #hdr{flex-shrink:0;background:linear-gradient(180deg,#274680,#1e3264);color:#fff;padding:12px;gap:8px;
     padding-top:calc(12px + env(safe-area-inset-top,0px));display:flex;align-items:center;justify-content:space-between;
     box-shadow:0 2px 10px rgba(15,23,42,.28)}
-  #hdr h1{font-size:18px;margin:0;font-weight:800;letter-spacing:.3px}
-  #now{font-size:13px;font-weight:700;opacity:.9;font-family:ui-monospace,monospace}
+  #hdr h1{font-size:17px;margin:0;font-weight:800;letter-spacing:.2px;display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #hdr h1 span{overflow:hidden;text-overflow:ellipsis}
+  #hdr h1 img{height:22px;width:auto;flex-shrink:0;background:#fff;border-radius:5px;padding:2px}
+  #hdr .mes-chip-wrap{flex-shrink:0}
+  #now{font-size:11px;font-weight:700;opacity:.9;white-space:nowrap}
   #grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px;overflow:auto;align-content:start}
   .tile{background:#fff;border:1px solid #dbe4f6;border-radius:18px;padding:22px 12px;text-align:center;cursor:pointer;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:180px;
@@ -35,7 +38,7 @@
 </head>
 <body>
   <div id="hdr">
-    <h1>🏭 SEI 자재 시스템</h1>
+    <h1><img src="ait-logo.png" alt="AIT"><span>AIT 자재시스템</span></h1>
     <div class="mes-chip-wrap"><span id="mes-who"></span><span id="now"></span></div>
   </div>
   <div id="grid">
@@ -59,7 +62,7 @@ function pad(n){ return String(n).padStart(2,'0'); }
 function tickClock(){
   const d=new Date();
   const el=document.getElementById('now');
-  if(el) el.textContent=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if(el) el.textContent=`${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw-req.js').catch(()=>{}); }
 MES_AUTH.ready(()=>{
