@@ -73,6 +73,8 @@
 <script src="js/mes-auth.js"></script>
 <script>
 'use strict';
+// 뒤로가기(bfcache)로 옛 화면이 복원되면 강제 새로고침 → 항상 최신 레이아웃/메뉴 표시
+window.addEventListener('pageshow', function(e){ if(e.persisted) location.reload(); });
 function pad(n){ return String(n).padStart(2,'0'); }
 function tickClock(){
   const d=new Date();
