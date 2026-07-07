@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>입고처리 — 자재팀</title>
+<meta name="theme-color" content="#1e3264">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  *{box-sizing:border-box;font-family:'Malgun Gothic','맑은 고딕',-apple-system,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{margin:0;background:#eef2f7;color:#0f172a;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+  #hdr{flex-shrink:0;z-index:10;background:linear-gradient(180deg,#274680,#1e3264);color:#fff;padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 10px rgba(15,23,42,.28)}
+  .hrow{display:flex;align-items:center;gap:8px}
+  .hrow-title{justify-content:space-between}
+  #hdr h1{font-size:17px;margin:0;font-weight:800;letter-spacing:.3px;white-space:nowrap}
+  .pill{background:rgba(255,255,255,.18);padding:5px 12px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
+  .h-icon{min-height:40px;min-width:42px;padding:0 10px;border:none;border-radius:8px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.5);color:#fff;font-size:18px;font-weight:800;cursor:pointer}
+  #content{flex:1;overflow:auto;padding:0 0 72px}
+  .empty{padding:50px 20px;text-align:center;color:#94a3b8;font-size:19px}
+  #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:11px 20px;border-radius:10px;font-size:16px;opacity:0;transition:opacity .25s;z-index:50;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.32)}
+  #toast.show{opacity:.96}
+  .sticktop{position:sticky;top:0;z-index:8;background:#eef2f7;box-shadow:0 3px 6px rgba(15,23,42,.08);padding:6px 8px;display:flex;flex-direction:column;gap:6px}
+  .ptbl2{width:100%;border-collapse:separate;border-spacing:0;background:#fff;font-size:16px}
+  .ptbl2 th,.ptbl2 td{border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;padding:9px 8px;text-align:center;vertical-align:top}
+  .ptbl2 thead th{background:#1e3264;color:#fff;font-size:15px;position:sticky;top:0}
+  .ptbl2 .pcol2{text-align:left}
+  .pno2{font-family:ui-monospace,monospace;font-weight:800;color:#1e3264;font-size:18px}
+  .pnm{font-size:12px;color:#64748b;white-space:normal;max-width:200px;line-height:1.25;margin-top:1px}
+  .qty{font-size:21px;font-weight:800}
+  .wh-tag{display:inline-block;font-size:12px;color:#0369a1;font-weight:800;margin-top:2px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:1px 7px}
+  #cfmModal{display:none;position:fixed;inset:0;z-index:150;background:rgba(15,23,42,.62);align-items:center;justify-content:center;padding:18px}
+  #cfmModal.open{display:flex}
+  .cfm-box{background:#fff;border-radius:16px;width:100%;max-width:360px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.45)}
+  .cfm-hd{background:#16a34a;color:#fff;font-weight:800;font-size:18px;padding:14px 18px}
+  .cfm-bd{padding:18px;font-size:16px;color:#0f172a;line-height:1.55;white-space:pre-line}
+  .cfm-ft{display:flex;gap:10px;padding:0 16px 16px}
+  .cfm-ft button{flex:1;min-height:52px;border:none;border-radius:11px;font-size:17px;font-weight:800;cursor:pointer}
+  .cfm-cancel{background:#f1f5f9;color:#64748b}
+  .cfm-ok{background:#16a34a;color:#fff}
+</style>
+</head>
+<body>
+  <div id="hdr">
+    <div class="hrow hrow-title">
+      <span style="display:flex;align-items:center;gap:8px">
+        <button class="h-icon" onclick="location.href='index.html'" title="메뉴">←</button>
+        <h1>📩 입고처리</h1>
+      </span>
+      <span style="display:flex;align-items:center;gap:8px"><span id="mes-who"></span><span class="pill" id="sum">-</span></span>
+    </div>
+  </div>
+  <div id="content"><div class="empty">불러오는 중...</div></div>
+  <div id="toast"></div>
+
+  <div id="cfmModal" onclick="if(event.target===this)_cfmClose(false)">
+    <div class="cfm-box">
+      <div class="cfm-hd" id="cfm-title">입고처리</div>
+      <div class="cfm-bd" id="cfm-msg"></div>
+      <div class="cfm-ft">
+        <button class="cfm-cancel" onclick="_cfmClose(false)">취소</button>
+        <button class="cfm-ok" onclick="_cfmClose(true)">입고처리</button>
+      </div>
+    </div>
+  </div>
+
+<script src="js/api.js"></script>
+<script src="js/mes-auth.js"></script>
+<script src="doc-common.js"></script>
+<script>
+'use strict';
+DOC.init({
+  kind:'pmwi',
+  title:'입고처리',
+  scanPlaceholder:'📷 가입고 완료 라벨 스캔 (PDA)',
+  saveLabel:'📩 입고처리',
+  extraTag:(r)=> r.cd_warehouse ? `<div class="wh-tag">🏬 입고창고 ${r.cd_warehouse}</div>` : ''
+});
+</script>
+</body>
+</html>
