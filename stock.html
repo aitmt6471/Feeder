@@ -178,13 +178,13 @@ function render(){
   let body='';
   list.forEach(g=>{
     const _box=Number((_locMap[g.pn]||{}).box)||0;   // 박스당수량(있으면 창고별 박스수 환산)
-    const bx=v=>_box?` <span style="color:#1d4ed8;font-weight:800;font-size:12px">${Math.ceil((Number(v)||0)/_box)}BOX</span>`:'';
+    const bx=v=>_box?` <span style="color:#1d4ed8;font-weight:800;font-size:12px">${Math.ceil((Number(v)||0)/_box)} BOX</span>`:'';
     const whrows=g.whs.map(w=>{
       if(w.lots.length===1){
         const l=w.lots[0];
         return `<tr class="whrow"><td class="whn">${w.name} <span class="lotinline">LOT ${l.lot||'-'}</span></td><td class="whq">${fmtQty(w.total)}${bx(w.total)}</td></tr>`;
       }
-      const lots=w.lots.map(l=>`<tr class="lotrow"><td class="lotn">└ LOT ${l.lot||'-'}</td><td class="lotq">${fmtQty(l.stock)}</td></tr>`).join('');
+      const lots=w.lots.map(l=>`<tr class="lotrow"><td class="lotn">└ LOT ${l.lot||'-'}</td><td class="lotq">${fmtQty(l.stock)}${bx(l.stock)}</td></tr>`).join('');
       return `<tr class="whrow"><td class="whn">${w.name}</td><td class="whq">${fmtQty(w.total)}${bx(w.total)}</td></tr>${lots}`;
     }).join('');
     body+=`<div class="pcard">

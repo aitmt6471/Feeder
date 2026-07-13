@@ -34,19 +34,12 @@
   .tile .sub{font-size:clamp(9px,1.1vh,11px);color:#94a3b8;font-weight:600;margin-top:0;line-height:1.15;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .mes-chip-wrap{display:flex;align-items:center;gap:8px}
-  /* 대시보드 요약카드 */
-  #dash{flex-shrink:0;display:flex;gap:7px;padding:7px 7px 0}
-  .dcard{flex:1;background:#fff;border:1px solid #dbe4f6;border-radius:12px;padding:8px 10px;display:flex;align-items:center;gap:9px;box-shadow:0 3px 10px rgba(15,23,42,.08);cursor:pointer;min-width:0}
-  .dcard:active{transform:scale(.98)}
-  .dcard .di{font-size:22px;flex-shrink:0;line-height:1}
-  .dcard .dt{min-width:0}
-  .dcard .dt .dn{font-size:11px;color:#64748b;font-weight:700;white-space:nowrap}
-  .dcard .dt{flex:1;min-width:0}
-  .dcard .dt .dv{font-size:15px;font-weight:800;color:#1e3264;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .dcard .dgo{margin-left:auto;flex-shrink:0;color:#cbd5e1;font-size:22px;font-weight:800;line-height:1}
-  .dcard.alert{background:#fff7ed;border-color:#fed7aa}
-  .dcard.alert .dv{color:#b45309}
-  .dcard.alert .dgo{color:#fdba74}
+  /* 생산출고요청 타일 부족 배지 + 헤더 알림 벨 */
+  .tile-badge{font-size:clamp(10px,1.4vh,13px);font-weight:800;border-radius:999px;padding:2px 10px;line-height:1.3;margin-top:1px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tile-badge.short{background:#fff7ed;border:1px solid #fed7aa;color:#b45309}
+  .tile-badge.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d}
+  #mes-bell{font-size:12px;font-weight:800;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:3px 9px;white-space:nowrap;cursor:pointer}
+  #mes-bell.alert{background:#b45309;border-color:#f59e0b}
   #shModal{display:none;position:fixed;inset:0;z-index:200;background:rgba(15,23,42,.55);align-items:flex-end;justify-content:center}
   #shModal.open{display:flex}
   .sh-box{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:520px;max-height:72vh;overflow:auto;padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
@@ -65,20 +58,14 @@
 <body>
   <div id="hdr">
     <h1><img src="ait-logo.png" alt="AIT"><span>AIT 자재시스템</span></h1>
-    <div class="mes-chip-wrap"><span id="mes-who"></span><span id="now"></span></div>
-  </div>
-  <div id="dash">
-    <div class="dcard" id="dc-main" onclick="openDash()">
-      <div class="di" id="dc-ico">📋</div>
-      <div class="dt"><div class="dn">자재 현황</div><div class="dv" id="dv-main">확인 중…</div></div>
-      <div class="dgo">›</div>
-    </div>
+    <div class="mes-chip-wrap"><span id="mes-who"></span><span id="now"></span><span id="mes-bell" onclick="openDash()">🔔</span></div>
   </div>
   <div id="grid">
     <div class="tile" onclick="location.href='req.html'">
       <div class="ico">🏭</div>
       <div class="nm">생산출고요청</div>
       <div class="sub">생산계획 부족분 · 스캔 이동</div>
+      <div class="tile-badge" id="req-badge" style="display:none" onclick="event.stopPropagation();openDash()"></div>
     </div>
     <div class="tile" onclick="location.href='move.html'">
       <div class="ico">🔀</div>
@@ -128,17 +115,24 @@ async function loadDash(){
     _dash=await r.json();
     renderDash();
   }catch(e){
-    const m=document.getElementById('dv-main'); if(m)m.textContent='현황 불러오기 실패 — 눌러서 재시도';
+    const bd=document.getElementById('req-badge');
+    if(bd){ bd.className='tile-badge'; bd.style.background='#fee2e2'; bd.style.color='#b91c1c'; bd.textContent='현황 로드 실패'; bd.style.display=''; }
   }
 }
 function renderDash(){
   const sh=(_dash&&_dash.shortage)||{lines:0,parts:0,list:[]};
   const pu=(_dash&&_dash.push)||{subs:0,latest:null};
-  const dv=document.getElementById('dv-main'), dc=document.getElementById('dc-main'), ico=document.getElementById('dc-ico');
-  const shTxt = sh.lines?`부족 ${sh.lines}라인·${sh.parts}품목`:'부족 없음 ✓';
-  if(dv) dv.textContent = `${shTxt} · 🔔 ${pu.subs}기기`;
-  if(dc) dc.classList.toggle('alert', !!sh.lines);
-  if(ico) ico.textContent = sh.lines?'📉':'📋';
+  // 헤더 알림 벨 — 구독 기기 수 + 부족 시 강조
+  const bell=document.getElementById('mes-bell');
+  if(bell){ bell.textContent=`🔔 ${pu.subs||0}`; bell.classList.toggle('alert', !!sh.lines); }
+  // 생산출고요청 타일 배지 — 부족 라인·품목 수
+  const bd=document.getElementById('req-badge');
+  if(bd){
+    bd.style.background=''; bd.style.color='';
+    if(sh.lines){ bd.className='tile-badge short'; bd.textContent=`🔴 ${sh.lines}라인·${sh.parts}품목 부족`; }
+    else { bd.className='tile-badge ok'; bd.textContent='부족 없음 ✓'; }
+    bd.style.display='';
+  }
 }
 function openDash(){
   const sh=(_dash&&_dash.shortage)||{lines:0,list:[]};
