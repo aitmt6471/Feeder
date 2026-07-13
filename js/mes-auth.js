@@ -53,7 +53,7 @@
     err.textContent = '확인 중...';
     try {
       const r = await AIT_API.pdaLogin(emp, pwd);
-      if (r && r.ok) {
+      if (r && r.ok && r.emp) {
         user = { emp: r.emp, name: r.name || r.emp };
         sessionStorage.setItem(KEY, JSON.stringify(user));
         document.getElementById('mes-pwd').value = '';
