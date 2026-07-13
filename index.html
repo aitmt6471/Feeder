@@ -41,9 +41,12 @@
   .dcard .di{font-size:22px;flex-shrink:0;line-height:1}
   .dcard .dt{min-width:0}
   .dcard .dt .dn{font-size:11px;color:#64748b;font-weight:700;white-space:nowrap}
+  .dcard .dt{flex:1;min-width:0}
   .dcard .dt .dv{font-size:15px;font-weight:800;color:#1e3264;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dcard .dgo{margin-left:auto;flex-shrink:0;color:#cbd5e1;font-size:22px;font-weight:800;line-height:1}
   .dcard.alert{background:#fff7ed;border-color:#fed7aa}
   .dcard.alert .dv{color:#b45309}
+  .dcard.alert .dgo{color:#fdba74}
   #shModal{display:none;position:fixed;inset:0;z-index:200;background:rgba(15,23,42,.55);align-items:flex-end;justify-content:center}
   #shModal.open{display:flex}
   .sh-box{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:520px;max-height:72vh;overflow:auto;padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
@@ -65,13 +68,10 @@
     <div class="mes-chip-wrap"><span id="mes-who"></span><span id="now"></span></div>
   </div>
   <div id="dash">
-    <div class="dcard" id="dc-short" onclick="openDash()">
-      <div class="di">📉</div>
-      <div class="dt"><div class="dn">부족자재</div><div class="dv" id="dv-short">확인 중…</div></div>
-    </div>
-    <div class="dcard" id="dc-push" onclick="openDash()">
-      <div class="di">🔔</div>
-      <div class="dt"><div class="dn">푸시 알림</div><div class="dv" id="dv-push">확인 중…</div></div>
+    <div class="dcard" id="dc-main" onclick="openDash()">
+      <div class="di" id="dc-ico">📋</div>
+      <div class="dt"><div class="dn">자재 현황</div><div class="dv" id="dv-main">확인 중…</div></div>
+      <div class="dgo">›</div>
     </div>
   </div>
   <div id="grid">
@@ -128,22 +128,17 @@ async function loadDash(){
     _dash=await r.json();
     renderDash();
   }catch(e){
-    const s=document.getElementById('dv-short'), p=document.getElementById('dv-push');
-    if(s)s.textContent='—'; if(p)p.textContent='—';
+    const m=document.getElementById('dv-main'); if(m)m.textContent='현황 불러오기 실패 — 눌러서 재시도';
   }
 }
 function renderDash(){
   const sh=(_dash&&_dash.shortage)||{lines:0,parts:0,list:[]};
   const pu=(_dash&&_dash.push)||{subs:0,latest:null};
-  const dvs=document.getElementById('dv-short'), dc=document.getElementById('dc-short');
-  if(dvs) dvs.textContent = sh.lines?`${sh.lines}라인 · ${sh.parts}품목`:'부족 없음 ✓';
+  const dv=document.getElementById('dv-main'), dc=document.getElementById('dc-main'), ico=document.getElementById('dc-ico');
+  const shTxt = sh.lines?`부족 ${sh.lines}라인·${sh.parts}품목`:'부족 없음 ✓';
+  if(dv) dv.textContent = `${shTxt} · 🔔 ${pu.subs}기기`;
   if(dc) dc.classList.toggle('alert', !!sh.lines);
-  const dvp=document.getElementById('dv-push');
-  if(dvp){
-    let t=`구독 ${pu.subs}기기`;
-    if(pu.latest&&pu.latest.ts){ const d=new Date(pu.latest.ts); t+=` · 최근 ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
-    dvp.textContent=t;
-  }
+  if(ico) ico.textContent = sh.lines?'📉':'📋';
 }
 function openDash(){
   const sh=(_dash&&_dash.shortage)||{lines:0,list:[]};
