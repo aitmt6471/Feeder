@@ -16,7 +16,7 @@ self.addEventListener('push', (e) => {
         if (r.ok) { const j = await r.json(); body = (j && j.body) || ''; }
       } catch (_) {}
     }
-    await self.registration.showNotification('필요투입품목', {
+    await self.registration.showNotification('생산출고요청', {
       body: body || '출고요청이 있습니다.',
       icon: '../ait-logo.png',
       badge: '../ait-logo.png',

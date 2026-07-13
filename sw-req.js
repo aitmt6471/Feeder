@@ -1,5 +1,5 @@
 // AIT MES 필요투입품목 PWA 서비스워커 (홈화면 설치용, 앱셸 캐시 + 푸시)
-const CACHE = 'feeder-v16';
+const CACHE = 'feeder-v17';
 const SHELL = ['./', 'index.html', 'req.html', 'stock.html', 'move.html', 'gaipgo.html', 'ipgo.html',
   'doc-common.js', 'js/api.js', 'js/mes-auth.js', 'manifest.json',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'ait-logo.png'];
@@ -47,7 +47,7 @@ self.addEventListener('push', (e) => {
         if (r.ok) { const j = await r.json(); body = (j && j.body) || ''; }
       } catch (_) {}
     }
-    await self.registration.showNotification('필요투입품목', {
+    await self.registration.showNotification('생산출고요청', {
       body: body || '출고요청이 있습니다.',
       icon: 'ait-logo.png',
       badge: 'ait-logo.png',
