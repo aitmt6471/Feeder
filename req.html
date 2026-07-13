@@ -341,7 +341,9 @@ async function loadLines(){
     const names=Array.isArray(lines)?lines.map(x=>x&&x.line).filter(Boolean):[];
     if(!names.length) throw new Error('empty');
     sel.innerHTML=names.map((n,i)=>`<option value="${esc1(n)}">${pad(i+1)}. ${n}</option>`).join('');
-    if(names.includes('VC')) sel.value='VC';   // 시범 기본 라인 유지
+    const qLine=new URLSearchParams(location.search).get('line');   // 대시보드 드릴다운 도착 라인
+    if(qLine && names.includes(qLine)) sel.value=qLine;
+    else if(names.includes('VC')) sel.value='VC';   // 시범 기본 라인 유지
   }catch(e){
     sel.innerHTML='<option value="VC">VC</option><option value="RC">RC</option>';
     toast('라인 목록 로드 실패 — 기본 라인 사용');
@@ -397,6 +399,8 @@ async function testPush(){
 (function init(){
   const d=new Date();
   document.getElementById('f-date').value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const qDate=new URLSearchParams(location.search).get('date');   // 대시보드 드릴다운 도착 날짜
+  if(qDate && /^\d{4}-\d{2}-\d{2}$/.test(qDate)) document.getElementById('f-date').value=qDate;
   syncDateBtn();
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw-req.js').then(reg=>{_swReg=reg;}).catch(()=>{}); }
   MES_AUTH.ready(async ()=>{

@@ -34,12 +34,40 @@
   .tile .sub{font-size:clamp(9px,1.1vh,11px);color:#94a3b8;font-weight:600;margin-top:0;line-height:1.15;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .mes-chip-wrap{display:flex;align-items:center;gap:8px}
+  /* 대시보드 요약카드 */
+  #dash{flex-shrink:0;display:flex;gap:7px;padding:7px 7px 0}
+  .dcard{flex:1;background:#fff;border:1px solid #dbe4f6;border-radius:12px;padding:8px 10px;display:flex;align-items:center;gap:9px;box-shadow:0 3px 10px rgba(15,23,42,.08);cursor:pointer;min-width:0}
+  .dcard:active{transform:scale(.98)}
+  .dcard .di{font-size:22px;flex-shrink:0;line-height:1}
+  .dcard .dt{min-width:0}
+  .dcard .dt .dn{font-size:11px;color:#64748b;font-weight:700;white-space:nowrap}
+  .dcard .dt .dv{font-size:15px;font-weight:800;color:#1e3264;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dcard.alert{background:#fff7ed;border-color:#fed7aa}
+  .dcard.alert .dv{color:#b45309}
+  #shModal{display:none;position:fixed;inset:0;z-index:200;background:rgba(15,23,42,.55);align-items:flex-end;justify-content:center}
+  #shModal.open{display:flex}
+  .sh-box{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:520px;max-height:72vh;overflow:auto;padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+  .sh-hd{font-size:16px;font-weight:800;color:#1e3264;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+  .sh-line{display:flex;justify-content:space-between;align-items:center;padding:13px 10px;border-bottom:1px solid #eef2f7;cursor:pointer;font-size:16px}
+  .sh-line:active{background:#f1f5f9}
+  .sh-line .l{font-weight:800;color:#1e3264}
+  .sh-line .c{font-size:13px;color:#b45309;font-weight:800;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:2px 9px}
 </style>
 </head>
 <body>
   <div id="hdr">
     <h1><img src="ait-logo.png" alt="AIT"><span>AIT 자재시스템</span></h1>
     <div class="mes-chip-wrap"><span id="mes-who"></span><span id="now"></span></div>
+  </div>
+  <div id="dash">
+    <div class="dcard" id="dc-short" onclick="openShort()">
+      <div class="di">📉</div>
+      <div class="dt"><div class="dn">부족자재</div><div class="dv" id="dv-short">확인 중…</div></div>
+    </div>
+    <div class="dcard" id="dc-push" onclick="location.href='req.html'">
+      <div class="di">🔔</div>
+      <div class="dt"><div class="dn">푸시 알림</div><div class="dv" id="dv-push">확인 중…</div></div>
+    </div>
   </div>
   <div id="grid">
     <div class="tile" onclick="location.href='req.html'">
@@ -69,6 +97,13 @@
     </div>
   </div>
 
+  <div id="shModal" onclick="if(event.target===this)closeShort()">
+    <div class="sh-box">
+      <div class="sh-hd"><span>📉 부족자재 발생 라인</span><span onclick="closeShort()" style="cursor:pointer;color:#64748b;padding:2px 8px">✕</span></div>
+      <div id="sh-list"></div>
+    </div>
+  </div>
+
 <script src="js/api.js"></script>
 <script src="js/mes-auth.js"></script>
 <script>
@@ -76,6 +111,46 @@
 // 뒤로가기(bfcache)로 옛 화면이 복원되면 강제 새로고침 → 항상 최신 레이아웃/메뉴 표시
 window.addEventListener('pageshow', function(e){ if(e.persisted) location.reload(); });
 function pad(n){ return String(n).padStart(2,'0'); }
+
+// ── 대시보드: 부족자재 라인요약 + 푸시 현황 ──
+const MES_DASH_URL='https://aitechn8n.ngrok.app/webhook/ait/mes/dashboard';
+let _dash=null;
+function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+async function loadDash(){
+  try{
+    const r=await fetch(MES_DASH_URL,{cache:'no-store'});
+    if(!r.ok) throw 0;
+    _dash=await r.json();
+    renderDash();
+  }catch(e){
+    const s=document.getElementById('dv-short'), p=document.getElementById('dv-push');
+    if(s)s.textContent='—'; if(p)p.textContent='—';
+  }
+}
+function renderDash(){
+  const sh=(_dash&&_dash.shortage)||{lines:0,parts:0,list:[]};
+  const pu=(_dash&&_dash.push)||{subs:0,latest:null};
+  const dvs=document.getElementById('dv-short'), dc=document.getElementById('dc-short');
+  if(dvs) dvs.textContent = sh.lines?`${sh.lines}라인 · ${sh.parts}품목`:'부족 없음 ✓';
+  if(dc) dc.classList.toggle('alert', !!sh.lines);
+  const dvp=document.getElementById('dv-push');
+  if(dvp){
+    let t=`구독 ${pu.subs}기기`;
+    if(pu.latest&&pu.latest.ts){ const d=new Date(pu.latest.ts); t+=` · 최근 ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+    dvp.textContent=t;
+  }
+}
+function openShort(){
+  const sh=_dash&&_dash.shortage;
+  if(!sh||!sh.lines){ return; }
+  document.getElementById('sh-list').innerHTML=sh.list.map(x=>{
+    const ln=String(x.line).replace(/'/g,'');
+    return `<div class="sh-line" onclick="goLine('${ln}')"><span class="l">${String(x.seq).padStart(2,'0')}. ${x.line}</span><span class="c">${x.count}품목 부족</span></div>`;
+  }).join('');
+  document.getElementById('shModal').classList.add('open');
+}
+function closeShort(){ document.getElementById('shModal').classList.remove('open'); }
+function goLine(line){ location.href='req.html?line='+encodeURIComponent(line)+'&date='+todayStr(); }
 function tickClock(){
   const d=new Date();
   const el=document.getElementById('now');
@@ -85,6 +160,7 @@ if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw-req.js').
 MES_AUTH.ready(()=>{
   const w=document.getElementById('mes-who'); if(w) w.innerHTML=MES_AUTH.chipHtml();
   tickClock(); setInterval(tickClock, 30000);
+  loadDash(); setInterval(loadDash, 60000);
 });
 </script>
 </body>
