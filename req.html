@@ -22,7 +22,7 @@
   #hdr h1{font-size:clamp(15px,4.4vw,17px);margin:0;font-weight:800;letter-spacing:.3px;white-space:nowrap;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
   #f-line{flex:1 1 120px;min-width:110px}
   .datewrap{position:relative;flex:0 0 auto;display:flex}
-  .datewrap #f-date{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0}
+  .datewrap #f-date{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;pointer-events:none}
   #f-date-btn{padding:7px 10px;text-align:center;font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
   .pill{background:rgba(255,255,255,.18);padding:5px 12px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
   .hctl{font-size:15px;padding:7px 8px;border-radius:8px;border:1px solid #c9d4e8;background:#fff;color:#0f172a;min-height:40px}
@@ -90,7 +90,7 @@
         <option value="">라인 불러오는 중…</option>
       </select>
       <span class="datewrap">
-        <button type="button" id="f-date-btn" class="hctl">--</button>
+        <button type="button" id="f-date-btn" class="hctl" onclick="openDatePicker()">--</button>
         <input type="date" id="f-date" onchange="onDateChange()">
       </span>
       <button class="h-icon" onclick="reload()" title="새로고침">↻</button>
@@ -160,6 +160,7 @@ function pad(n){ return String(n).padStart(2,'0'); }
 function ymd(){ const v=document.getElementById('f-date').value; return v?v.replace(/-/g,''):''; }
 function fmtDateDisp(v){ return (v&&v.length>=10)?v.slice(2):'--'; }   // yyyy-mm-dd → yy-mm-dd
 function syncDateBtn(){ const b=document.getElementById('f-date-btn'); if(b) b.textContent=fmtDateDisp(document.getElementById('f-date').value); }
+function openDatePicker(){ const el=document.getElementById('f-date'); if(!el) return; try{ if(typeof el.showPicker==='function'){ el.showPicker(); return; } }catch(_){}; try{ el.focus(); el.click(); }catch(_){}; }
 function onDateChange(){ syncDateBtn(); reload(); }
 function beepErr(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)(); const o=a.createOscillator(); o.frequency.value=220; o.connect(a.destination); o.start(); setTimeout(()=>{o.stop();a.close();},180);}catch(_){ } }
 function locTag(pn){ const o=_locMap[pn]; return (o&&o.loc)?`<div class="loc-tag">📍 ${o.loc}</div>`:''; }
