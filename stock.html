@@ -188,7 +188,7 @@ function render(){
       return `<tr class="whrow"><td class="whn">${w.name}</td><td class="whq">${fmtQty(w.total)}${bx(w.total)}</td></tr>${lots}`;
     }).join('');
     body+=`<div class="pcard">
-      <div class="phd"><span class="phd-l">${typeBadge(g.type)}<span class="pno2">${g.pn}</span></span><span class="ptot">총합 ${fmtQty(g.total)}EA</span></div>
+      <div class="phd"><span class="phd-l">${typeBadge(g.type)}<span class="pno2">${g.pn}</span></span><span class="ptot">총합 ${fmtQty(g.total)}EA${_box?` · ${Math.ceil(g.total/_box)} BOX`:''}</span></div>
       <div class="pnm">${g.name}${g.spec?(' · '+g.spec):''}</div>
       <div>${locTag(g.pn)}${boxTag(g.pn,g.total)}</div>
       <table class="whtbl"><tbody>${whrows}</tbody></table>
