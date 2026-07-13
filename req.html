@@ -196,7 +196,12 @@ async function onScan(){
   const inp=document.getElementById('scan'); if(!inp) return;
   const label=inp.value.trim(); inp.value='';
   if(!label){ inp.focus(); return; }
-  for(const k in _scanPending){ if(_scanPending[k].some(b=>b.label===label)){ toast('이미 스캔된 라벨입니다'); beepErr(); inp.focus(); return; } }
+  // 이미 스캔된 라벨을 다시 찍으면 → 그 박스(수량)를 취소(토글)
+  for(const k in _scanPending){
+    const i=_scanPending[k].findIndex(b=>b.label===label);
+    if(i>=0){ const cq=Number(_scanPending[k][i].qty)||0; _scanPending[k].splice(i,1); if(!_scanPending[k].length) delete _scanPending[k];
+      toast(`재스캔 취소 −${fmtQty(cq)}`); render(); focusScan(); return; }
+  }
   let r; try{ r=await AIT_API.labelInfo(label,'00025'); }catch(e){ toast('조회 오류: '+(e.message||e)); inp.focus(); return; }
   if(!r||!r.ok){ toast('자재창고에 없는 라벨입니다'); beepErr(); inp.focus(); return; }
   const pn=String(r.item);
@@ -210,13 +215,11 @@ async function onScan(){
       `품번 ${pn}\n스캔한 LOT ${sl}\n더 빠른 LOT ${el} 이(가) 자재창고에 남아있습니다.\n\n선입선출(먼저 들어온 LOT 먼저)을 권장합니다.\n그래도 이 박스를 담을까요?`);
     if(!ok){ inp.focus(); return; }
   }
-  // ── 필요박스 초과 안내 (필요수량이 아니라 박스 수 기준) ──
+  // ── 필요수량 초과 안내 (충족판정=수량 기준. 박스는 확인용) ──
   const need=Number(row.total_qty)||0;
-  const box=Number((_locMap[pn]||{}).box)||0;
-  const needBoxes=box?Math.ceil(need/box):0;
-  if(needBoxes && pendBoxes(pn)+1>needBoxes){
-    const ok=await askConfirm('⚠️ 필요박스 초과',
-      `품번 ${pn}\n필요박스 ${needBoxes}박스를 초과합니다.\n현재 ${pendBoxes(pn)+1}/${needBoxes}박스\n\n그래도 이 박스를 담을까요?`);
+  if(pendQty(pn)+q>need){
+    const ok=await askConfirm('⚠️ 필요수량 초과',
+      `품번 ${pn}\n필요수량 ${fmtQty(need)} 을(를) 초과합니다.\n현재 ${fmtQty(pendQty(pn))} + ${fmtQty(q)} = ${fmtQty(pendQty(pn)+q)}\n\n그래도 이 박스를 담을까요?`);
     if(!ok){ inp.focus(); return; }
   }
   const k=pkey(pn);
@@ -233,20 +236,18 @@ async function saveMoves(){
     return;
   }
   const t=pendTotals(); if(!t.boxes){ toast('스캔된 박스가 없습니다'); return; }
-  // ── 현재 타임 필요박스 미달 검사 (휴먼에러 인지용, 강제 차단 아님) ──
+  // ── 현재 타임 필요수량 미달 검사 (충족판정은 수량 기준. 박스는 확인용) ──
   const short=[];
   for(const p of _rows){
     if((p.slot||'A')!==_slot || !p.sub_part_no || p.is_empty) continue;
-    const pn=p.sub_part_no, pb=pendBoxes(pn);
-    if(!pb) continue;                                   // 안 담은 품번은 검사 제외
-    const box=Number((_locMap[pn]||{}).box)||0;
-    if(!box) continue;                                  // 박스당수량 정보 없으면 제외
-    const needBoxes=Math.ceil((Number(p.total_qty)||0)/box);
-    if(pb<needBoxes) short.push(`· ${pn} : ${pb}/${needBoxes}박스`);
+    const pn=p.sub_part_no, pq=pendQty(pn);
+    if(!pq) continue;                                   // 안 담은 품번은 검사 제외
+    const need=Number(p.total_qty)||0;
+    if(pq<need) short.push(`· ${pn} : ${fmtQty(pq)}/${fmtQty(need)}`);
   }
   if(short.length){
-    const ok=await askConfirm('⚠️ 필요박스 미달',
-      `필요박스 수량보다 적게 스캔되었습니다.\n\n${short.join('\n')}\n\n덜 찍혔거나 스캔이 안 읽혔을 수 있어요.\n그래도 이동을 진행할까요?`);
+    const ok=await askConfirm('⚠️ 필요수량 미달',
+      `필요수량만큼 채워지지 않았습니다.\n\n${short.join('\n')}\n\n소량 입고로 낱개만 들어왔거나 스캔이 덜 됐을 수 있어요.\n그래도 이동을 진행할까요?`);
     if(!ok) return;
   }
   const inWh=(_rows[0]&&_rows[0].in_wh)||''; // 생산창고(목적지)
@@ -315,9 +316,10 @@ function render(){
     const pq=pendQty(pn), pb=pendBoxes(pn);
     const xBtn=`<button onclick="cancelPending('${esc1(pn)}')" title="저장대기 취소" style="margin-top:3px;border:none;background:#fee2e2;color:#b91c1c;border-radius:6px;width:24px;height:20px;font-size:12px;cursor:pointer">✕</button>`;
     let fill, bg='#fff';
-    if(pb && pq>=need){ fill=`<div style="font-size:14px;font-weight:800;color:#1d4ed8">🔵 채움 ✓</div><div style="font-size:10px;color:#1d4ed8">${pb}박스·저장대기</div>${xBtn}`; bg='#eff6ff'; }
-    else if(pb){ fill=`<div style="font-size:14px;font-weight:800;color:#1d4ed8">🔵 ${pb}/${needBoxes??'?'}박스</div><div style="font-size:10px;color:#64748b">${fmtQty(pq)}/${fmtQty(need)}</div>${xBtn}`; bg='#eff6ff'; }
-    else { fill=`<div style="font-size:14px;font-weight:700;color:#94a3b8">☐ ${needBoxes?('0/'+needBoxes+'박스'):'-'}</div>`; }
+    // 충족판정=수량 기준. 박스수는 확인용 보조표시.
+    if(pb && pq>=need){ fill=`<div style="font-size:14px;font-weight:800;color:#1d4ed8">🔵 채움 ✓</div><div style="font-size:11px;color:#1d4ed8">${fmtQty(pq)}/${fmtQty(need)} · ${pb}박스</div>${xBtn}`; bg='#eff6ff'; }
+    else if(pb){ fill=`<div style="font-size:15px;font-weight:800;color:#1d4ed8">🔵 ${fmtQty(pq)}/${fmtQty(need)}</div><div style="font-size:10px;color:#64748b">${pb}${needBoxes?('/'+needBoxes):''}박스</div>${xBtn}`; bg='#eff6ff'; }
+    else { fill=`<div style="font-size:14px;font-weight:700;color:#94a3b8">☐ 0/${fmtQty(need)}${needBoxes?(' ('+needBoxes+'박스)'):''}</div>`; }
     body+=`<tr>
       <td class="pcol2"><span class="pno2">${pn}</span><div class="pnm">${p.part_name||''}</div>${locTag(pn)}${p.req_time?`<div style="display:inline-block;font-size:11px;color:#0369a1;font-weight:800;margin-top:2px;margin-left:4px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:1px 7px" title="자재투입 등록시각">🕘 ${p.req_time}</div>`:''}</td>
       <td style="background:${bg}"><div class="qty" style="color:#15803d">${fmtQty(need)}</div>${boxTag(pn,need)}</td>

@@ -140,7 +140,8 @@ async function onScan(){
   const label=inp.value.trim(); inp.value='';
   if(!label){ inp.focus(); return; }
   if(!outWh()){ toast('출고창고를 선택하세요!!'); beepErr(); inp.focus(); return; }
-  if(_scanPending[label]){ toast('이미 스캔된 라벨입니다'); beepErr(); inp.focus(); return; }
+  // 이미 스캔된 라벨 재스캔 → 취소(토글)
+  if(_scanPending[label]){ const cq=Number(_scanPending[label].qty)||0; delete _scanPending[label]; toast(`재스캔 취소 −${fmtQty(cq)}`); render(); focusScan(); return; }
   let r; try{ r=await AIT_API.labelInfo(label, outWh()); }catch(e){ toast('조회 오류: '+(e.message||e)); inp.focus(); return; }
   if(!r||!r.ok){ toast('출고창고에 없는 라벨입니다'); beepErr(); inp.focus(); return; }
   const q=Number(r.qty)||0;
@@ -217,8 +218,8 @@ async function loadWarehouses(){
     const whs=await MES_MOVE.warehouses();
     const list=Array.isArray(whs)?whs.filter(w=>w&&w.code):[];
     if(!list.length) throw new Error('empty');
-    list.sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true}));
-    const opt=(ph)=>`<option value="">${ph}</option>`+list.map(w=>`<option value="${esc1(w.code)}">${w.code} ${w.name||''}</option>`).join('');
+    list.sort((a,b)=>String(a.name||a.code).localeCompare(String(b.name||b.code),'ko',{numeric:true}));
+    const opt=(ph)=>`<option value="">${ph}</option>`+list.map(w=>`<option value="${esc1(w.code)}">${w.name||''} (${w.code})</option>`).join('');
     so.innerHTML=opt('📤 출고창고 선택');
     si.innerHTML=opt('📥 입고창고 선택');
   }catch(e){
