@@ -76,6 +76,8 @@
 
 <script src="js/api.js"></script>
 <script src="js/mes-auth.js"></script>
+<script src="js/zxing.min.js"></script>
+<script src="js/scanner.js"></script>
 <script>
 'use strict';
 
@@ -151,12 +153,27 @@ async function runSearch(q){
 
 function toolbarHtml(){
   return `<div class="sticktop">
-    <input id="q" placeholder="🔎 품번·품명 입력 / 📷 라벨 스캔" autocomplete="off"
-      value="${_qval.replace(/"/g,'&quot;')}"
-      style="width:100%;font-size:15px;padding:9px 12px;border:2px solid #1e3264;border-radius:10px;min-height:42px;font-family:ui-monospace,monospace"
-      onkeydown="onQKey(event)">
+    <div style="display:flex;gap:6px">
+      <input id="q" placeholder="🔎 품번·품명 입력 / 📷 라벨 스캔" autocomplete="off"
+        value="${_qval.replace(/"/g,'&quot;')}"
+        style="flex:1;min-width:0;font-size:15px;padding:9px 12px;border:2px solid #1e3264;border-radius:10px;min-height:42px;font-family:ui-monospace,monospace"
+        onkeydown="onQKey(event)">
+      <button type="button" onclick="startCamScan()" title="카메라로 라벨 스캔"
+        style="flex:0 0 auto;min-width:52px;border:none;border-radius:10px;background:#16a34a;color:#fff;font-size:22px;cursor:pointer">📷</button>
+    </div>
     <div class="hint">창고별 현재고 (재고 있는 창고만 표시)</div>
   </div>`;
+}
+
+// 📷 모바일 카메라로 박스라벨 스캔 → 검색창에 채우고 조회 (PDA 스캐너와 동일 경로)
+async function startCamScan(){
+  try{
+    const code=await AITScan.scan();
+    if(!code) return;                     // 사용자가 닫음
+    const inp=document.getElementById('q');
+    if(inp){ inp.value=code; _searched=false; }
+    onEnter();
+  }catch(e){ toast(e&&e.message||'카메라 오류'); beepErr(); }
 }
 
 function render(){

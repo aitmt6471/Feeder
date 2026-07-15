@@ -130,6 +130,8 @@
 
 <script src="js/api.js"></script>
 <script src="js/mes-auth.js"></script>
+<script src="js/zxing.min.js"></script>
+<script src="js/scanner.js"></script>
 <script>
 'use strict';
 
@@ -191,6 +193,17 @@ function slotsMeta(){
   return ['A','B','C','D'].filter(s=>m[s]).map(s=>m[s]);
 }
 function setSlot(s){ _slot=s; render(); focusScan(); }
+
+// 📷 모바일 카메라로 박스라벨 스캔 → 입력란에 채우고 onScan() (PDA 스캐너와 동일 경로)
+async function startCamScan(){
+  try{
+    const code=await AITScan.scan();
+    if(!code) return;                     // 사용자가 닫음
+    const inp=document.getElementById('scan');
+    if(inp) inp.value=code;
+    onScan();
+  }catch(e){ toast(e&&e.message||'카메라 오류'); beepErr(); }
+}
 
 // ── 스캔: 박스라벨 → 자재창고(00025) 조회 → 리스트 품번 매칭 → 누적 ──
 async function onScan(){
@@ -309,9 +322,13 @@ function render(){
   const rows=[..._rows].filter(p=>(p.slot||'A')===_slot && p.sub_part_no && !p.is_empty)
     .sort((a,b)=>String(a.sub_part_no).localeCompare(String(b.sub_part_no),undefined,{numeric:true}));
   const toolbar=`<div class="sticktop">${tabs}${slotInfo}
-    <input id="scan" placeholder="📷 박스라벨 스캔 (PDA)" autocomplete="off" inputmode="none" virtualkeyboardpolicy="manual"
-      style="width:100%;font-size:15px;padding:9px 12px;border:2px solid #1e3264;border-radius:10px;min-height:42px;font-family:ui-monospace,monospace"
-      onkeydown="if(event.key==='Enter'){event.preventDefault();onScan()}">
+    <div style="display:flex;gap:6px">
+      <input id="scan" placeholder="📷 박스라벨 스캔 (PDA)" autocomplete="off" inputmode="none" virtualkeyboardpolicy="manual"
+        style="flex:1;min-width:0;font-size:15px;padding:9px 12px;border:2px solid #1e3264;border-radius:10px;min-height:42px;font-family:ui-monospace,monospace"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();onScan()}">
+      <button type="button" onclick="startCamScan()" title="카메라로 라벨 스캔"
+        style="flex:0 0 auto;min-width:52px;border:none;border-radius:10px;background:#16a34a;color:#fff;font-size:22px;cursor:pointer">📷</button>
+    </div>
     <button onclick="saveMoves()" ${pt.boxes?'':'disabled'} style="width:100%;min-height:42px;border-radius:9px;font-size:15px;font-weight:800;cursor:pointer;border:none;color:#fff;background:${pt.boxes?'#1e3264':'#cbd5e1'}">📦 이동 저장${pt.boxes?` (${pt.boxes}박스·${pt.pns}품목)`:''}</button>
   </div>`;
   if(!_rows.length){ wrap.innerHTML=toolbar+'<div class="empty">부족한 투입품목이 없습니다 ✅</div>'; focusScan(); return; }
