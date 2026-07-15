@@ -1,5 +1,5 @@
 // AIT MES 필요투입품목 PWA 서비스워커 (홈화면 설치용, 앱셸 캐시 + 푸시)
-const CACHE = 'feeder-v27';
+const CACHE = 'feeder-v28';
 const SHELL = ['./', 'index.html', 'req.html', 'stock.html', 'move.html', 'gaipgo.html', 'ipgo.html',
   'doc-common.js', 'js/api.js', 'js/mes-auth.js', 'js/zxing.min.js', 'js/scanner.js', 'manifest.json',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'ait-logo.png'];
