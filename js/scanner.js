@@ -29,11 +29,20 @@
         padding:12px 14px;color:#fff;font-weight:800;font-size:16px}
       #aitscan-ov .as-x{min-height:42px;min-width:56px;padding:0 14px;border:1px solid rgba(255,255,255,.5);
         border-radius:9px;background:rgba(255,255,255,.14);color:#fff;font-size:16px;font-weight:800;cursor:pointer}
-      #aitscan-ov .as-stage{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+      #aitscan-ov .as-stage{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;touch-action:none}
       #aitscan-ov video{width:100%;height:100%;object-fit:cover;background:#000}
       #aitscan-ov .as-frame{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-        width:78%;max-width:420px;aspect-ratio:5/2;border:3px solid #22c55e;border-radius:14px;
+        width:min(82vw,360px);aspect-ratio:1/1;border:3px solid #22c55e;border-radius:16px;
         box-shadow:0 0 0 9999px rgba(0,0,0,.42);pointer-events:none}
+      #aitscan-ov .as-focus{position:absolute;width:74px;height:74px;border:2px solid #fde047;border-radius:10px;
+        transform:translate(-50%,-50%) scale(1.25);opacity:0;pointer-events:none;transition:transform .18s,opacity .18s}
+      #aitscan-ov .as-focus.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+      #aitscan-ov .as-zoom{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+        display:none;align-items:center;gap:10px;width:min(84vw,420px);
+        background:rgba(0,0,0,.42);border-radius:999px;padding:8px 16px}
+      #aitscan-ov .as-zoom.show{display:flex}
+      #aitscan-ov .as-zoom span{color:#fff;font-size:15px;font-weight:800;min-width:20px;text-align:center}
+      #aitscan-ov .as-zoom input{flex:1;accent-color:#22c55e;height:26px}
       #aitscan-ov .as-hint{padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));color:#e2e8f0;
         text-align:center;font-size:14px;line-height:1.5}
       #aitscan-ov .as-err{color:#fecaca;font-weight:700}
@@ -52,14 +61,23 @@
       ov.id = 'aitscan-ov';
       ov.innerHTML = `
         <div class="as-top"><span>📷 라벨을 초록 틀 안에 맞춰주세요</span><button class="as-x" type="button">닫기</button></div>
-        <div class="as-stage"><video playsinline muted autoplay></video><div class="as-frame"></div></div>
-        <div class="as-hint" id="as-hint">카메라 준비 중…</div>`;
+        <div class="as-stage">
+          <video playsinline muted autoplay></video>
+          <div class="as-frame"></div>
+          <div class="as-focus" id="as-focus"></div>
+          <div class="as-zoom" id="as-zoom"><span>➖</span><input type="range" id="as-zoomr"><span>➕</span></div>
+        </div>
+        <div class="as-hint" id="as-hint">카메라 준비 중… (틀을 탭하면 초점, 두 손가락으로 확대)</div>`;
       document.body.appendChild(ov);
 
+      const stage = ov.querySelector('.as-stage');
       const video = ov.querySelector('video');
       const hintEl = ov.querySelector('#as-hint');
+      const focusEl = ov.querySelector('#as-focus');
+      const zoomBox = ov.querySelector('#as-zoom');
+      const zoomR = ov.querySelector('#as-zoomr');
       const reader = new window.ZXing.BrowserMultiFormatReader(buildHints());
-      let done = false;
+      let done = false, track = null;
 
       function cleanup() {
         try { reader.reset(); } catch (_) {}
@@ -71,10 +89,62 @@
 
       ov.querySelector('.as-x').addEventListener('click', () => finish(null));
 
+      // ── 카메라 트랙 확보 후 줌/초점 컨트롤 연결 ──
+      function setupControls() {
+        try {
+          const st = video.srcObject; if (!st) return false;
+          track = st.getVideoTracks()[0]; if (!track) return false;
+          const caps = track.getCapabilities ? track.getCapabilities() : {};
+          // 줌: 지원 시 슬라이더 표시 + 핀치 제스처
+          if (caps && caps.zoom && caps.zoom.max > caps.zoom.min) {
+            const zmin = caps.zoom.min, zmax = caps.zoom.max, zstep = caps.zoom.step || (zmax - zmin) / 100;
+            let zcur = (track.getSettings && track.getSettings().zoom) || zmin;
+            zoomR.min = zmin; zoomR.max = zmax; zoomR.step = zstep; zoomR.value = zcur;
+            zoomBox.classList.add('show');
+            const applyZoom = v => { zcur = Math.min(zmax, Math.max(zmin, v)); zoomR.value = zcur;
+              track.applyConstraints({ advanced: [{ zoom: zcur }] }).catch(() => {}); };
+            zoomR.addEventListener('input', () => applyZoom(Number(zoomR.value)));
+            // 두 손가락 핀치 → 줌
+            let pinch0 = 0, zoom0 = zcur;
+            stage.addEventListener('touchmove', e => {
+              if (e.touches.length !== 2) return;
+              e.preventDefault();
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              const dist = Math.hypot(dx, dy);
+              if (!pinch0) { pinch0 = dist; zoom0 = zcur; return; }
+              applyZoom(zoom0 + (dist - pinch0) / 120 * (zmax - zmin) / 4);
+            }, { passive: false });
+            stage.addEventListener('touchend', e => { if (e.touches.length < 2) pinch0 = 0; });
+          }
+          return true;
+        } catch (_) { return false; }
+      }
+      const ctlTimer = setInterval(() => { if (done || setupControls()) clearInterval(ctlTimer); }, 300);
+      setTimeout(() => clearInterval(ctlTimer), 6000);
+
+      // ── 탭 초점: 지원 시 해당 지점으로, 아니면 오토포커스 재시도 ──
+      stage.addEventListener('click', ev => {
+        const rect = stage.getBoundingClientRect();
+        const px = ev.clientX - rect.left, py = ev.clientY - rect.top;
+        focusEl.style.left = px + 'px'; focusEl.style.top = py + 'px';
+        focusEl.classList.remove('on'); void focusEl.offsetWidth; focusEl.classList.add('on');
+        setTimeout(() => focusEl.classList.remove('on'), 900);
+        if (!track || !track.getCapabilities) return;
+        const caps = track.getCapabilities();
+        const adv = {};
+        if (caps.focusMode) {
+          if (caps.focusMode.includes('single-shot')) adv.focusMode = 'single-shot';
+          else if (caps.focusMode.includes('continuous')) adv.focusMode = 'continuous';
+        }
+        if (caps.pointsOfInterest) adv.pointsOfInterest = [{ x: px / rect.width, y: py / rect.height }];
+        if (Object.keys(adv).length) track.applyConstraints({ advanced: [adv] }).catch(() => {});
+      });
+
       const constraints = { video: { facingMode: { ideal: 'environment' } } };
       reader.decodeFromConstraints(constraints, video, (result, err) => {
         if (done) return;
-        if (hintEl.textContent === '카메라 준비 중…') hintEl.textContent = '바코드를 비추면 자동 인식됩니다';
+        if (hintEl.textContent.indexOf('카메라 준비 중') === 0) hintEl.textContent = '바코드를 비추면 자동 인식 · 틀 탭=초점, 핀치=확대';
         if (result) {
           const text = (result.getText() || '').trim();
           if (text) { try { navigator.vibrate && navigator.vibrate(60); } catch (_) {} finish(text); }
