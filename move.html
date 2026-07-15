@@ -127,12 +127,19 @@ function pendTotals(){ const labels=Object.keys(_scanPending); const pns=new Set
 function groupByPart(){
   const g={};
   for(const b of pending()){
-    const pn=b.item; const o=(g[pn]=g[pn]||{pn, name:b.name||'', qty:0, boxes:0, labels:[]});
-    o.qty+=Number(b.qty)||0; o.boxes++; o.labels.push(b.label);
+    const pn=b.item; const o=(g[pn]=g[pn]||{pn, name:b.name||'', qty:0, boxes:0, boxlist:[]});
+    o.qty+=Number(b.qty)||0; o.boxes++; o.boxlist.push(b);
   }
   return Object.values(g).sort((a,b)=>String(a.pn).localeCompare(String(b.pn),undefined,{numeric:true}));
 }
 function cancelLabel(label){ if(!_scanPending[label]) return; delete _scanPending[label]; toast('저장대기 취소'); render(); focusScan(); }
+// 박스별 이동수량 수정 (0<수량<=박스원수량). MES가 라벨을 분할 처리
+function setBoxQty(label,val){
+  const b=_scanPending[label]; if(!b) return;
+  let v=Number(val); if(!isFinite(v)||v<0) v=0;
+  if(v>b.max){ v=b.max; toast(`박스 수량(${fmtQty(b.max)})보다 많을 수 없어요`); beepErr(); }
+  b.qty=v; render(); focusScan();
+}
 
 // ── 스캔: 박스라벨 → 선택 출고창고에서 조회 → 누적 ──
 async function onScan(){
@@ -146,7 +153,7 @@ async function onScan(){
   if(!r||!r.ok){ toast('출고창고에 없는 라벨입니다'); beepErr(); inp.focus(); return; }
   const q=Number(r.qty)||0;
   if(!q){ toast('수량이 0인 라벨입니다'); beepErr(); inp.focus(); return; }
-  _scanPending[label]={sysitem:r.sysitem, item:String(r.item), name:r.name||'', lot:r.lot, qty:q, label};
+  _scanPending[label]={sysitem:r.sysitem, item:String(r.item), name:r.name||'', lot:r.lot, qty:q, max:q, label};
   toast(`${r.item} +1박스 (${fmtQty(q)})`);
   refreshLocs(); render(); focusScan();
 }
@@ -159,10 +166,15 @@ async function saveMoves(){
   const t=pendTotals(); if(!t.boxes){ toast('스캔된 박스가 없습니다'); return; }
   const outNm=document.getElementById('f-out').selectedOptions[0].textContent;
   const inNm=document.getElementById('f-in').selectedOptions[0].textContent;
+  // 이동수량 0 박스는 제외. 부분수량이 하나라도 있으면 안내 문구 추가
+  const movable=pending().filter(b=>Number(b.qty)>0);
+  if(!movable.length){ toast('이동수량이 0입니다'); beepErr(); return; }
+  const hasPartial=movable.some(b=>Number(b.qty)<Number(b.max));
+  const partialNote=hasPartial?'\n\n⚠️ 일부 박스는 부분수량 이동입니다.\nMES에서 박스라벨이 분할됩니다.':'';
   const ok=await askConfirm('🔀 이동처리',
-    `${outNm}\n  → ${inNm}\n\n${t.pns}품목 · ${t.boxes}박스\n\n해당 정보를 이동처리 하시겠습니까?`);
+    `${outNm}\n  → ${inNm}\n\n${t.pns}품목 · ${movable.length}박스${partialNote}\n\n해당 정보를 이동처리 하시겠습니까?`);
   if(!ok) return;
-  const boxes=pending().map(b=>({sysitem:b.sysitem,label:b.label,lot:b.lot,qty:b.qty}));
+  const boxes=movable.map(b=>({sysitem:b.sysitem,label:b.label,lot:b.lot,qty:b.qty}));
   _busy=true; toast(`이동 처리 중... (${t.boxes}박스)`);
   try{
     const res=await AIT_API.stockMove({out_wh:outWh(),in_wh:inWh(),emp:MES_AUTH.emp,boxes});
@@ -197,13 +209,23 @@ function render(){
     <button onclick="saveMoves()" ${pt.boxes?'':'disabled'} style="width:100%;min-height:42px;border-radius:9px;font-size:15px;font-weight:800;cursor:pointer;border:none;color:#fff;background:${pt.boxes?'#1e3264':'#cbd5e1'}">🔀 이동 저장${pt.boxes?` (${pt.boxes}박스·${pt.pns}품목)`:''}</button>
   </div>`;
   if(!parts.length){ wrap.innerHTML=toolbar+'<div class="empty">출고창고·입고창고를 고르고<br>박스라벨을 스캔하세요</div>'; focusScan(); return; }
-  let body=`<table class="ptbl2"><thead><tr><th style="text-align:left">부품</th><th style="min-width:80px">스캔수량</th><th style="min-width:70px">박스</th></tr></thead><tbody>`;
+  let body=`<table class="ptbl2"><thead><tr><th style="text-align:left">부품</th><th style="min-width:70px">이동수량</th><th style="min-width:118px">박스별 수량</th></tr></thead><tbody>`;
   parts.forEach(g=>{
-    const xBtns=g.labels.map(l=>`<button onclick="cancelLabel('${esc1(l)}')" title="이 박스 취소" style="margin:2px;border:none;background:#fee2e2;color:#b91c1c;border-radius:6px;padding:2px 6px;font-size:11px;cursor:pointer">✕${String(l).slice(-4)}</button>`).join('');
+    const boxRows=g.boxlist.map(b=>{
+      const partial=Number(b.qty)<Number(b.max);
+      return `<div style="display:flex;align-items:center;gap:4px;margin:3px 0;justify-content:flex-end">
+        <span style="font-family:ui-monospace;font-size:11px;color:#64748b" title="라벨 ${esc1(b.label)}">…${String(b.label).slice(-4)}</span>
+        <input type="number" value="${b.qty}" min="0" max="${b.max}" step="any" inputmode="decimal"
+          onfocus="this.select()" onchange="setBoxQty('${esc1(b.label)}',this.value)"
+          style="width:60px;font-size:14px;padding:4px 5px;border:1.5px solid ${partial?'#d97706':'#1e3264'};border-radius:7px;text-align:right;font-family:ui-monospace;color:${partial?'#b45309':'#0f172a'};font-weight:700">
+        <span style="font-size:10px;color:#94a3b8;white-space:nowrap">/${fmtQty(b.max)}</span>
+        <button onclick="cancelLabel('${esc1(b.label)}')" title="이 박스 취소" style="border:none;background:#fee2e2;color:#b91c1c;border-radius:6px;width:22px;height:22px;font-size:11px;cursor:pointer;flex-shrink:0">✕</button>
+      </div>`;
+    }).join('');
     body+=`<tr>
       <td class="pcol2"><span class="pno2">${g.pn}</span><div class="pnm">${g.name||''}</div>${locTag(g.pn)}</td>
-      <td><div class="qty" style="color:#1d4ed8">${fmtQty(g.qty)}</div></td>
-      <td><div style="font-size:15px;font-weight:800;color:#1d4ed8">${g.boxes}박스</div>${xBtns}</td>
+      <td><div class="qty" style="color:#1d4ed8">${fmtQty(g.qty)}</div><div style="font-size:11px;color:#64748b">${g.boxes}박스</div></td>
+      <td>${boxRows}</td>
     </tr>`;
   });
   body+='</tbody></table>';

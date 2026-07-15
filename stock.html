@@ -184,8 +184,8 @@ function render(){
     const g=(groups[pn]=groups[pn]||{pn, name:r.part_name||'', spec:r.spec||'', type:r.item_type||'', whMap:{}, whs:[], total:0});
     const key=r.wh_name||r.wh_code||'';
     let w=g.whMap[key];
-    if(!w){ w={name:key, total:0, lots:[]}; g.whMap[key]=w; g.whs.push(w); }
-    w.lots.push({lot:r.lot||'', stock:Number(r.stock)||0});
+    if(!w){ w={name:key, total:0, boxes:[]}; g.whMap[key]=w; g.whs.push(w); }
+    w.boxes.push({lot:r.lot||'', label:r.label||'', stock:Number(r.stock)||0});
     w.total+=Number(r.stock)||0;
     g.total+=Number(r.stock)||0;
   }
@@ -197,12 +197,18 @@ function render(){
     const _box=Number((_locMap[g.pn]||{}).box)||0;   // 박스당수량(있으면 창고별 박스수 환산)
     const bx=v=>_box?` <span style="color:#1d4ed8;font-weight:800;font-size:12px">${Math.ceil((Number(v)||0)/_box)} BOX</span>`:'';
     const whrows=g.whs.map(w=>{
-      if(w.lots.length===1){
-        const l=w.lots[0];
-        return `<tr class="whrow"><td class="whn">${w.name} <span class="lotinline">LOT ${l.lot||'-'}</span></td><td class="whq">${fmtQty(w.total)}${bx(w.total)}</td></tr>`;
+      // 라벨 없는 단일 벌크(원자재 등) → 기존처럼 한 줄
+      if(w.boxes.length===1 && !w.boxes[0].label){
+        const b=w.boxes[0];
+        return `<tr class="whrow"><td class="whn">${w.name} <span class="lotinline">LOT ${b.lot||'-'}</span></td><td class="whq">${fmtQty(w.total)}${bx(w.total)}</td></tr>`;
       }
-      const lots=w.lots.map(l=>`<tr class="lotrow"><td class="lotn">└ LOT ${l.lot||'-'}</td><td class="lotq">${fmtQty(l.stock)}${bx(l.stock)}</td></tr>`).join('');
-      return `<tr class="whrow"><td class="whn">${w.name}</td><td class="whq">${fmtQty(w.total)}${bx(w.total)}</td></tr>${lots}`;
+      // 창고 헤더 + 박스별(LOT·라벨) 행 — 완제품 박스라벨 위치 확인용
+      const head=`<tr class="whrow"><td class="whn">${w.name}</td><td class="whq">${fmtQty(w.total)}${bx(w.total)}</td></tr>`;
+      const boxrows=w.boxes.map(b=>{
+        const lab=b.label?` · 📦 <span class="lotinline">${b.label}</span>`:'';
+        return `<tr class="lotrow"><td class="lotn">└ LOT ${b.lot||'-'}${lab}</td><td class="lotq">${fmtQty(b.stock)}${bx(b.stock)}</td></tr>`;
+      }).join('');
+      return head+boxrows;
     }).join('');
     body+=`<div class="pcard">
       <div class="phd"><span class="phd-l">${typeBadge(g.type)}<span class="pno2">${g.pn}</span></span><span class="ptot">총합 ${fmtQty(g.total)}EA${_box?` · ${Math.ceil(g.total/_box)} BOX`:''}</span></div>
