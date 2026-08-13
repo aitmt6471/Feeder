@@ -107,7 +107,7 @@
       <div class="cfm-bd" id="cfm-msg"></div>
       <div class="cfm-ft">
         <button class="cfm-cancel" onclick="_cfmClose(false)">취소</button>
-        <button class="cfm-ok" onclick="_cfmClose(true)">그래도 진행</button>
+        <button class="cfm-ok" id="cfm-ok" onclick="_cfmClose(true)">그래도 진행</button>
       </div>
     </div>
   </div>
@@ -170,10 +170,11 @@ function boxTag(pn,qty){ const o=_locMap[pn]; if(!o||!o.box) return ''; const n=
 
 // ── 스타일 확인 모달 (Promise<boolean>) ──
 let _cfmResolve=null;
-function askConfirm(title,msg){
+function askConfirm(title,msg,hideOk){
   return new Promise(res=>{ _cfmResolve=res;
     document.getElementById('cfm-title').textContent=title;
     document.getElementById('cfm-msg').textContent=msg;
+    document.getElementById('cfm-ok').style.display=hideOk?'none':'';
     document.getElementById('cfmModal').classList.add('open'); });
 }
 function _cfmClose(v){ document.getElementById('cfmModal').classList.remove('open'); const r=_cfmResolve; _cfmResolve=null; if(r) r(v); }
@@ -226,7 +227,7 @@ async function onScan(){
   const el=String(r.earliest_lot||''), sl=String(r.lot||'');
   if(el && sl && el<sl){
     const ok=await askConfirm('⚠️ 더 빠른 LOT 있음',
-      `품번 ${pn}\n스캔한 LOT ${sl}\n더 빠른 LOT ${el} 이(가) 자재창고에 남아있습니다.\n\n선입선출(먼저 들어온 LOT 먼저)을 권장합니다.\n그래도 이 박스를 담을까요?`);
+      `품번 ${pn}\n스캔한 LOT ${sl}\n더 빠른 LOT ${el} 이(가) 자재창고에 남아있습니다.\n\n선입선출(먼저 들어온 LOT 먼저)로 처리해주세요.`, true);
     if(!ok){ inp.focus(); return; }
   }
   const k=pkey(pn);
