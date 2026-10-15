@@ -34,7 +34,7 @@ self.addEventListener('fetch', (e) => {
 });
 
 // 푸시 수신 → 최신 알림 문구 조회 후 '○○ 새 필요투입품목…' 알림
-const REQ_LATEST_URL = 'https://aitechn8n.ngrok.app/webhook/ait/mes/req-push-latest';
+const REQ_LATEST_URL = 'https://aitkorea.bid/webhook/ait/mes/req-push-latest';
 self.addEventListener('push', (e) => {
   e.waitUntil((async () => {
     let body = '';

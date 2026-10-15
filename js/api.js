@@ -1,11 +1,11 @@
 /* ══════════════════════════════════════════════════════════════
    AIT_API — 공정문서 DB 연동 추상화 레이어
    MOCK = true  → localStorage 사용
-   MOCK = false → n8n 웹훅 호출 (https://aitechn8n.ngrok.app)
+   MOCK = false → n8n 웹훅 호출 (https://aitkorea.bid)
    ══════════════════════════════════════════════════════════════ */
 const AIT_API = (() => {
 
-  const N8N = 'https://aitechn8n.ngrok.app/webhook';
+  const N8N = 'https://aitkorea.bid/webhook';
   const MOCK = false; // n8n 워크플로우 연동
 
   /* ────────────────────────────────────────────────

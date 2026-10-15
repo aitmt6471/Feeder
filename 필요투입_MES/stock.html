@@ -70,7 +70,7 @@
 
 const SCAN_WH='00025';   // 박스라벨이 존재하는 자재창고(라벨→품번 해석용). 재고표시는 창고별 전체.
 const MES_REQ={
-  N8N:'https://aitechn8n.ngrok.app/webhook',
+  N8N:'https://aitkorea.bid/webhook',
   async stock(q,type){
     const qs=new URLSearchParams(type?{q,type}:{q}).toString();
     const r=await fetch(`${this.N8N}/ait/mes/stock-query?${qs}`,{cache:'no-store'});

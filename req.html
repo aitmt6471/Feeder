@@ -137,7 +137,7 @@
 
 // ── 필요투입 리스트 전용 클라이언트 (AIT_API와 별개, 새 분리 워크플로우 직접 호출) ──
 const MES_REQ = {
-  N8N: 'https://aitechn8n.ngrok.app/webhook',
+  N8N: 'https://aitkorea.bid/webhook',
   async list(line, date){
     const qs = new URLSearchParams({line, date}).toString();
     const r = await fetch(`${this.N8N}/ait/mes/required-input?${qs}`, {cache:'no-store'});
