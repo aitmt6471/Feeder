@@ -105,7 +105,7 @@ window.addEventListener('pageshow', function(e){ if(e.persisted) location.reload
 function pad(n){ return String(n).padStart(2,'0'); }
 
 // ── 대시보드: 부족자재 라인요약 + 푸시 현황 ──
-const MES_DASH_URL='https://aitkorea.bid/webhook/ait/mes/dashboard';
+const MES_DASH_URL='https://aitkorea.app/webhook/ait/mes/dashboard';
 let _dash=null;
 function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 async function loadDash(){

@@ -5,7 +5,7 @@
    ══════════════════════════════════════════════════════════════ */
 'use strict';
 const MES_DOC = {
-  N8N: 'https://aitkorea.bid/webhook',
+  N8N: 'https://aitkorea.app/webhook',
   async pmtiReq(no){
     const r = await fetch(`${this.N8N}/ait/mes/pmti-req?no=${encodeURIComponent(no)}`, {cache:'no-store'});
     if(!r.ok) throw new Error('pmti-req '+r.status);

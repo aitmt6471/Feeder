@@ -38,7 +38,7 @@ READ-ONLY SELECT만 사용 → 운영 DB(`SEIERP_AIT`) 직접 안전. 새 워크
 ```
 배포 후 테스트:
 ```bash
-curl "https://aitkorea.bid/webhook/ait/mes/required-input?line=VC&date=20260626"
+curl "https://aitkorea.app/webhook/ait/mes/required-input?line=VC&date=20260626"
 ```
 프론트는 기존 웹앱과 **같은 docroot**에서 서빙해야 함(`../js/api.js`, `../js/mes-auth.js` 참조).
 

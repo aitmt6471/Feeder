@@ -12,7 +12,7 @@
 import json, sys, os, urllib.request, urllib.error
 sys.stdout.reconfigure(encoding='utf-8')
 
-N8N='aitkorea.bid'
+N8N='aitkorea.app'
 MSSQL_CRED={'id':'RaXPO7ow6AUqr10U','name':'Microsoft SQL account'}
 # 가입고/입고(PMTI/PMWI) SP EXECUTE 권한이 있는 AIT_ADMIN(dbo) 크리덴셜. 해당 라우트에만 사용.
 MSSQL_ADMIN_CRED={'id':'wF4YwkLXgSUIScXe','name':'AIT_ADMIN SQL (가입고/입고)'}
